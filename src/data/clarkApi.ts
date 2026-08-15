@@ -173,6 +173,32 @@ export async function getLessons(options: {
   return data;
 }
 
+// Admin panel's Lessons tab: every Lesson platform-wide, regardless of
+// ownership or Visibility. No client-side admin check — RLS itself is what
+// makes this actually return everything only for an Admin caller
+// (lessons_select_public_own_or_admin already grants that); a non-admin
+// calling this just gets the same public+own subset getLessons() would.
+// `search` matches a case-insensitive substring of either title or subject.
+export async function getAllLessons(search?: string): Promise<Lesson[]> {
+  let query = supabase.from("lessons").select();
+
+  const term = search?.trim();
+  if (term) {
+    // Strips `,` and `(`/`)` — structurally meaningful in a raw PostgREST
+    // `.or()` filter string (comma separates conditions, parens group them)
+    // — and `%`, the ILIKE wildcard, so search text can't inject unintended
+    // filter grouping or wildcard behavior.
+    const escaped = term.replace(/[%,()]/g, "");
+    query = query.or(`title.ilike.%${escaped}%,subject.ilike.%${escaped}%`);
+  }
+
+  const { data, error } = await query.order("created_at", {
+    ascending: false,
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function getLesson(id: string): Promise<Lesson> {
   const { data, error } = await supabase
     .from("lessons")
