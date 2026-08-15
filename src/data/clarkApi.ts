@@ -1,6 +1,7 @@
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient";
 import { validateLessonFields } from "./lessonValidation";
+import { validateTestFields } from "./testValidation";
 
 export type { Session };
 
@@ -22,6 +23,16 @@ export type Lesson = {
   owner_id: string;
   test: Question[] | null;
   created_at: string;
+};
+
+export type Role = "student" | "admin";
+
+export type Profile = {
+  id: string;
+  name: string;
+  email: string;
+  bio: string;
+  role: Role;
 };
 
 export async function login(email: string, password: string): Promise<void> {
@@ -54,6 +65,55 @@ export function onSessionChange(
     callback(session);
   });
   return () => subscription.unsubscribe();
+}
+
+export async function getProfile(): Promise<Profile> {
+  const session = await getSession();
+  if (!session) throw new Error("Not signed in.");
+  const { data, error } = await supabase
+    .from("profiles")
+    .select()
+    .eq("id", session.user.id)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// `email` here is only the profiles.email display column, distinct from the
+// Supabase Auth login email — the spec describes no self-service Auth email
+// change flow (unlike password reset, which it calls out explicitly), so
+// this is a plain RLS-gated field update, not an Auth account change.
+export async function updateProfile(updates: {
+  name: string;
+  email: string;
+  bio: string;
+}): Promise<Profile> {
+  const session = await getSession();
+  if (!session) throw new Error("Not signed in.");
+  const { data, error } = await supabase
+    .from("profiles")
+    .update(updates)
+    .eq("id", session.user.id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function changePassword(newPassword: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw error;
+}
+
+// profiles has no owner-DELETE policy — rows are meant to be removed only
+// via cascade from deleting auth.users (see the delete_own_account migration
+// for why a security-definer RPC, not an Edge Function, is the right seam
+// for a *self* delete). Cascades auth.users -> profiles -> lessons, then
+// signs out locally since the session's Account no longer exists.
+export async function deleteOwnAccount(): Promise<void> {
+  const { error } = await supabase.rpc("delete_own_account");
+  if (error) throw error;
+  await logout();
 }
 
 export async function createLesson(input: {
@@ -151,6 +211,25 @@ export async function deleteLesson(id: string): Promise<void> {
     .select()
     .single();
   if (error) throw error;
+}
+
+// A JSONB column overwrite, not an append — publishing a new Test fully
+// replaces any prior one (spec's replace-not-append data-model decision).
+// Same RLS-enforced ownership rule as updateLesson/deleteLesson: a non-owner
+// matches 0 rows and .single() surfaces that as a thrown error.
+export async function publishTest(
+  lessonId: string,
+  questions: unknown,
+): Promise<Lesson> {
+  const validated = validateTestFields(questions);
+  const { data, error } = await supabase
+    .from("lessons")
+    .update({ test: validated })
+    .eq("id", lessonId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
 }
 
 // Resolves display names for Lesson attribution ("By {name}") — id -> name

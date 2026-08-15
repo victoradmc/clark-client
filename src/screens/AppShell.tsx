@@ -28,10 +28,16 @@ export default function AppShell({
         <NavLink to="/upload" className={navLinkClass}>
           Upload Lesson
         </NavLink>
+        <NavLink to="/upload-test" className={navLinkClass}>
+          Upload Test
+        </NavLink>
         <span className="flex-1" />
-        <span className="text-label text-[13px] font-semibold">
+        <NavLink
+          to="/profile"
+          className="text-label rounded-full text-[13px] font-semibold no-underline hover:underline"
+        >
           {session.user.email}
-        </span>
+        </NavLink>
         <button
           type="button"
           onClick={() => void logout()}

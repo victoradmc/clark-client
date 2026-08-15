@@ -75,11 +75,19 @@ export default function LessonViewScreen() {
         <div className="mb-2 text-[11.5px] font-bold tracking-[.06em] text-[#F0A78C] uppercase">
           Check your knowledge
         </div>
-        {/* Ticket 05 adds the Test-taking flow when lesson.test is set;
-            nothing in ticket 02 can create a Lesson with a Test yet. */}
         <div className="text-base leading-snug font-semibold">
-          No test has been uploaded for this lesson yet.
+          {lesson.test && lesson.test.length > 0
+            ? `${lesson.test.length} question${lesson.test.length === 1 ? "" : "s"} available`
+            : "No test has been uploaded for this lesson yet."}
         </div>
+        {lesson.test && lesson.test.length > 0 && (
+          <Link
+            to={`/lessons/${lesson.id}/test`}
+            className="bg-brand mt-4 inline-block rounded-[11px] px-5 py-2.5 text-sm font-bold text-white no-underline"
+          >
+            Take the test
+          </Link>
+        )}
       </div>
     </div>
   );
