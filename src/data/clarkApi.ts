@@ -76,6 +76,43 @@ export async function createLesson(input: {
   return data;
 }
 
+export type HubTab = "public" | "mine";
+
+// Public tab: every Lesson with visibility = public, regardless of owner.
+// Mine tab: every Lesson owned by the caller, regardless of visibility.
+// `search` matches title, case-insensitive substring. `subject`, when given
+// and not "All subjects", narrows to an exact Subject match.
+export async function getLessons(options: {
+  tab: HubTab;
+  search?: string;
+  subject?: string;
+}): Promise<Lesson[]> {
+  let query = supabase.from("lessons").select();
+
+  if (options.tab === "public") {
+    query = query.eq("visibility", "public");
+  } else {
+    const session = await getSession();
+    if (!session) throw new Error("Not signed in.");
+    query = query.eq("owner_id", session.user.id);
+  }
+
+  const search = options.search?.trim();
+  if (search) {
+    query = query.ilike("title", `%${search}%`);
+  }
+
+  if (options.subject && options.subject !== "All subjects") {
+    query = query.eq("subject", options.subject);
+  }
+
+  const { data, error } = await query.order("created_at", {
+    ascending: false,
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function getLesson(id: string): Promise<Lesson> {
   const { data, error } = await supabase
     .from("lessons")
@@ -84,6 +121,36 @@ export async function getLesson(id: string): Promise<Lesson> {
     .single();
   if (error) throw error;
   return data;
+}
+
+// Owner-editable fields only — content, subject, and origin are immutable
+// post-publish (spec's content-editing-scope decision). RLS restricts which
+// row this can actually touch to the owner or an Admin; when it can't, 0
+// rows match and .single() surfaces that as a thrown error.
+export async function updateLesson(
+  id: string,
+  updates: { title: string; visibility: LessonVisibility },
+): Promise<Lesson> {
+  const { data, error } = await supabase
+    .from("lessons")
+    .update(updates)
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// Same RLS-enforced ownership rule as updateLesson: 0 rows deleted (not the
+// owner or an Admin) surfaces as a thrown error via .single().
+export async function deleteLesson(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("lessons")
+    .delete()
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
 }
 
 // Resolves display names for Lesson attribution ("By {name}") — id -> name
