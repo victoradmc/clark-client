@@ -8,9 +8,11 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 
 export default function AppShell({
   session,
+  isAdmin,
   children,
 }: {
   session: Session;
+  isAdmin: boolean;
   children: ReactNode;
 }) {
   return (
@@ -31,6 +33,11 @@ export default function AppShell({
         <NavLink to="/upload-test" className={navLinkClass}>
           Upload Test
         </NavLink>
+        {isAdmin && (
+          <NavLink to="/admin" className={navLinkClass}>
+            Admin
+          </NavLink>
+        )}
         <span className="flex-1" />
         <NavLink
           to="/profile"

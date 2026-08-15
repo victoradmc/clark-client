@@ -56,3 +56,26 @@ export async function ensureFixtureAccount(
 
   return id;
 }
+
+const MAILPIT_URL = "http://127.0.0.1:54324";
+
+// Polls the local Supabase stack's captured-email inbox (Mailpit) for a
+// message to `email` — the only way to observe "did this trigger a real
+// Auth email" without mocking supabase.auth itself.
+export async function findEmailTo(
+  email: string,
+  { timeoutMs = 3000 }: { timeoutMs?: number } = {},
+): Promise<{ subject: string } | null> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const res = await fetch(
+      `${MAILPIT_URL}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`,
+    );
+    const body = await res.json();
+    if (body.messages?.length > 0) {
+      return { subject: body.messages[0].Subject };
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  return null;
+}

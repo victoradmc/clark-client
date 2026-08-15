@@ -248,3 +248,68 @@ export async function getOwnerNames(
     (data as { id: string; name: string }[]).map((row) => [row.id, row.name]),
   );
 }
+
+export type AccountStatus = "active" | "invited";
+
+export type Account = {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  status: AccountStatus;
+};
+
+// Admin-only — the RPC itself rejects a non-Admin caller (see the
+// admin_list_accounts migration), this just surfaces that as a thrown error.
+export async function getAccounts(): Promise<Account[]> {
+  const { data, error } = await supabase.rpc("admin_list_accounts");
+  if (error) throw error;
+  return data;
+}
+
+// A plain RLS-gated table update, not the Edge Function — spec.md: role
+// changes on existing Accounts don't need the Auth Admin API. RLS plus the
+// ticket 01 trigger reject a non-Admin caller, an Admin acting on their own
+// row, or removing the last remaining Admin's role.
+export async function updateAccountRole(id: string, role: Role): Promise<void> {
+  const { error } = await supabase.from("profiles").update({ role }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function requestPasswordReset(email: string): Promise<void> {
+  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  if (error) throw error;
+}
+
+// Both actions below call the single privileged Edge Function (ADR 0002) —
+// the only place the service_role key exists. Supabase's FunctionsHttpError
+// carries the function's JSON error body on `.context`, not `.message`, so
+// this unwraps it to surface the Edge Function's actual error text.
+async function invokeAdminAccountsFunction(
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const { data, error } = await supabase.functions.invoke("admin-accounts", {
+    body,
+  });
+  if (error) {
+    if ("context" in error && error.context instanceof Response) {
+      const parsed = await error.context.clone().json().catch(() => null);
+      if (parsed?.error) throw new Error(parsed.error);
+    }
+    throw error;
+  }
+  return data;
+}
+
+export async function inviteAccount(input: {
+  name: string;
+  email: string;
+  role: Role;
+}): Promise<Account> {
+  const data = await invokeAdminAccountsFunction({ action: "invite", ...input });
+  return data as Account;
+}
+
+export async function deleteAccount(id: string): Promise<void> {
+  await invokeAdminAccountsFunction({ action: "delete", id });
+}
