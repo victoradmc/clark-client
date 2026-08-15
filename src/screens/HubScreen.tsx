@@ -8,6 +8,7 @@ import {
   type Lesson,
 } from "../data/clarkApi";
 import Badge from "../components/Badge";
+import TabToggle from "../components/TabToggle";
 
 const ALL_SUBJECTS = "All subjects";
 
@@ -97,26 +98,14 @@ export default function HubScreen() {
             Find something to learn
           </h1>
         </div>
-        <div className="bg-chip flex gap-0.5 rounded-[11px] p-1">
-          <button
-            type="button"
-            onClick={() => handleTabChange("public")}
-            className={`rounded-lg px-4 py-2 text-[13px] font-semibold ${
-              tab === "public" ? "bg-white text-ink" : "text-muted"
-            }`}
-          >
-            Public
-          </button>
-          <button
-            type="button"
-            onClick={() => handleTabChange("mine")}
-            className={`rounded-lg px-4 py-2 text-[13px] font-semibold ${
-              tab === "mine" ? "bg-white text-ink" : "text-muted"
-            }`}
-          >
-            My lessons
-          </button>
-        </div>
+        <TabToggle
+          options={[
+            { value: "public", label: "Public" },
+            { value: "mine", label: "My lessons" },
+          ]}
+          value={tab}
+          onChange={handleTabChange}
+        />
       </div>
 
       <div className="mb-7 flex flex-wrap gap-3">

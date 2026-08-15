@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getProfile } from "../data/clarkApi";
+import TabToggle from "../components/TabToggle";
 import AdminAccountsTab from "./AdminAccountsTab";
 import AdminLessonsTab from "./AdminLessonsTab";
 
@@ -46,26 +47,14 @@ export default function AdminScreen() {
             Control panel
           </h1>
         </div>
-        <div className="bg-chip flex gap-0.5 rounded-[11px] p-1">
-          <button
-            type="button"
-            onClick={() => setTab("accounts")}
-            className={`rounded-lg px-4 py-2 text-[13px] font-semibold ${
-              tab === "accounts" ? "bg-white text-ink" : "text-muted"
-            }`}
-          >
-            Accounts
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("lessons")}
-            className={`rounded-lg px-4 py-2 text-[13px] font-semibold ${
-              tab === "lessons" ? "bg-white text-ink" : "text-muted"
-            }`}
-          >
-            Lessons
-          </button>
-        </div>
+        <TabToggle
+          options={[
+            { value: "accounts", label: "Accounts" },
+            { value: "lessons", label: "Lessons" },
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
       </div>
 
       {tab === "accounts" ? <AdminAccountsTab /> : <AdminLessonsTab />}

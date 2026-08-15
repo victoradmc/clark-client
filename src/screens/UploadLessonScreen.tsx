@@ -1,17 +1,31 @@
-import { useRef, useState, type ChangeEvent } from "react";
+import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { createLesson, type LessonVisibility } from "../data/clarkApi";
-import { parseLessonJson, type ParsedLessonFields } from "../data/lessonValidation";
+import {
+  parseLessonJson,
+  validateLessonFields,
+  type ParsedLessonFields,
+} from "../data/lessonValidation";
 import Badge from "../components/Badge";
+import TabToggle from "../components/TabToggle";
+
+type UploadMode = "json" | "form";
 
 export default function UploadLessonScreen() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [mode, setMode] = useState<UploadMode>("json");
+
   const [text, setText] = useState("");
   const [parseError, setParseError] = useState<string | null>(null);
   const [parsed, setParsed] = useState<ParsedLessonFields | null>(null);
   const [phase, setPhase] = useState<"upload" | "publish">("upload");
+
+  const [formTitle, setFormTitle] = useState("");
+  const [formSubject, setFormSubject] = useState("");
+  const [formContent, setFormContent] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
   const [visibility, setVisibility] = useState<LessonVisibility>("public");
@@ -44,6 +58,29 @@ export default function UploadLessonScreen() {
     setTitle(parsed.title);
     setVisibility("public");
     setPhase("publish");
+  }
+
+  // Same validateLessonFields rules the JSON path uses (via parseLessonJson)
+  // — a hand-typed Lesson has no JSON to parse, but the required-field
+  // checks and the Origin default are identical either way.
+  function handleFormSubmit(e: FormEvent) {
+    e.preventDefault();
+    try {
+      const fields = validateLessonFields({
+        title: formTitle,
+        content: formContent,
+        subject: formSubject,
+      });
+      setFormError(null);
+      setParsed(fields);
+      setTitle(fields.title);
+      setVisibility("public");
+      setPhase("publish");
+    } catch (err) {
+      setFormError(
+        err instanceof Error ? err.message : "Could not create this lesson.",
+      );
+    }
   }
 
   async function handlePublish() {
@@ -161,68 +198,136 @@ export default function UploadLessonScreen() {
 
   return (
     <div>
-      <div className="text-brand mb-1.5 text-xs font-bold tracking-[.06em] uppercase">
-        Upload
-      </div>
-      <h1 className="mb-2 text-[28px] font-extrabold tracking-[-0.02em]">
-        Upload a lesson JSON
-      </h1>
-      <p className="text-muted mb-5 max-w-[60ch] text-[13.5px]">
-        Pick the JSON file exported by your AI agent, or paste it below.
-        Expected fields: title, content (Markdown), subject, origin.
-      </p>
-
-      <div className="mb-4">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="application/json,.json"
-          onChange={handleFileChange}
-          className="text-sm"
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-4">
+        <div className="text-brand text-xs font-bold tracking-[.06em] uppercase">
+          Upload
+        </div>
+        <TabToggle
+          options={[
+            { value: "json", label: "Upload JSON" },
+            { value: "form", label: "Write it yourself" },
+          ]}
+          value={mode}
+          onChange={setMode}
         />
       </div>
 
-      <textarea
-        className="border-border focus:outline-brand min-h-[280px] w-full rounded-2xl border bg-white p-4 font-mono text-[12.5px] leading-relaxed focus:outline-2 focus:outline-offset-1"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder='{"title": "...", "content": "...", "subject": "...", "origin": "..."}'
-      />
-      {parseError && (
-        <p className="text-brand-dark mt-2.5 text-[12.5px]">{parseError}</p>
-      )}
-
-      <div className="mt-[18px]">
-        <button
-          type="button"
-          onClick={handleParse}
-          className="bg-brand rounded-[11px] px-5 py-2.5 text-sm font-bold text-white"
-        >
-          Parse &amp; preview
-        </button>
-      </div>
-
-      {parsed && (
-        <div className="border-border-soft mt-6 max-w-[600px] rounded-2xl border bg-white p-[22px]">
-          <div className="text-faint mb-2 text-[11.5px] font-bold tracking-[.06em] uppercase">
-            Preview
-          </div>
-          <div className="mb-2.5 text-lg font-bold">{parsed.title}</div>
-          <div className="mb-3 flex gap-2">
-            <Badge tone="brand">{parsed.subject}</Badge>
-            <Badge>{parsed.origin}</Badge>
-          </div>
-          <p className="text-chip-text mb-4 text-[13.5px] leading-relaxed">
-            {parsed.content.replace(/[#*_-]+/g, " ").slice(0, 160)}…
+      {mode === "json" ? (
+        <>
+          <h1 className="mb-2 text-[28px] font-extrabold tracking-[-0.02em]">
+            Upload a lesson JSON
+          </h1>
+          <p className="text-muted mb-5 max-w-[60ch] text-[13.5px]">
+            Pick the JSON file exported by your AI agent, or paste it below.
+            Expected fields: title, content (Markdown), subject, origin.
           </p>
-          <button
-            type="button"
-            onClick={handleContinue}
-            className="border-border rounded-[10px] border bg-white px-[18px] py-2.5 text-[13.5px] font-semibold"
-          >
-            Continue to publish settings
-          </button>
-        </div>
+
+          <div className="mb-4">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json,.json"
+              onChange={handleFileChange}
+              className="text-sm"
+            />
+          </div>
+
+          <textarea
+            className="border-border focus:outline-brand min-h-[280px] w-full rounded-2xl border bg-white p-4 font-mono text-[12.5px] leading-relaxed focus:outline-2 focus:outline-offset-1"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder='{"title": "...", "content": "...", "subject": "...", "origin": "..."}'
+          />
+          {parseError && (
+            <p className="text-brand-dark mt-2.5 text-[12.5px]">{parseError}</p>
+          )}
+
+          <div className="mt-[18px]">
+            <button
+              type="button"
+              onClick={handleParse}
+              className="bg-brand rounded-[11px] px-5 py-2.5 text-sm font-bold text-white"
+            >
+              Parse &amp; preview
+            </button>
+          </div>
+
+          {parsed && (
+            <div className="border-border-soft mt-6 max-w-[600px] rounded-2xl border bg-white p-[22px]">
+              <div className="text-faint mb-2 text-[11.5px] font-bold tracking-[.06em] uppercase">
+                Preview
+              </div>
+              <div className="mb-2.5 text-lg font-bold">{parsed.title}</div>
+              <div className="mb-3 flex gap-2">
+                <Badge tone="brand">{parsed.subject}</Badge>
+                <Badge>{parsed.origin}</Badge>
+              </div>
+              <p className="text-chip-text mb-4 text-[13.5px] leading-relaxed">
+                {parsed.content.replace(/[#*_-]+/g, " ").slice(0, 160)}…
+              </p>
+              <button
+                type="button"
+                onClick={handleContinue}
+                className="border-border rounded-[10px] border bg-white px-[18px] py-2.5 text-[13.5px] font-semibold"
+              >
+                Continue to publish settings
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <h1 className="mb-2 text-[28px] font-extrabold tracking-[-0.02em]">
+            Write a lesson
+          </h1>
+          <p className="text-muted mb-5 max-w-[60ch] text-[13.5px]">
+            No JSON needed — fill in the title and subject, then paste or
+            type your content as Markdown.
+          </p>
+
+          <form onSubmit={handleFormSubmit} className="grid max-w-[600px] gap-4">
+            <div>
+              <label className="text-label mb-1.5 block text-[12.5px] font-semibold">
+                Title
+              </label>
+              <input
+                className="border-border focus:outline-brand w-full rounded-[11px] border bg-white px-3.5 py-2.5 text-sm focus:outline-2 focus:outline-offset-1"
+                value={formTitle}
+                onChange={(e) => setFormTitle(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-label mb-1.5 block text-[12.5px] font-semibold">
+                Subject
+              </label>
+              <input
+                className="border-border focus:outline-brand w-full rounded-[11px] border bg-white px-3.5 py-2.5 text-sm focus:outline-2 focus:outline-offset-1"
+                value={formSubject}
+                onChange={(e) => setFormSubject(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-label mb-1.5 block text-[12.5px] font-semibold">
+                Content (Markdown)
+              </label>
+              <textarea
+                className="border-border focus:outline-brand min-h-[320px] w-full rounded-2xl border bg-white p-4 text-sm leading-relaxed focus:outline-2 focus:outline-offset-1"
+                value={formContent}
+                onChange={(e) => setFormContent(e.target.value)}
+                placeholder={"## Heading\nWrite your lesson content here using Markdown…"}
+              />
+            </div>
+            {formError && (
+              <p className="text-brand-dark text-[12.5px]">{formError}</p>
+            )}
+            <button
+              type="submit"
+              className="bg-brand w-fit rounded-[11px] px-5 py-2.5 text-sm font-bold text-white"
+            >
+              Continue to publish settings
+            </button>
+          </form>
+        </>
       )}
     </div>
   );
