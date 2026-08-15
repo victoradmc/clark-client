@@ -1,0 +1,28 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@theme {
+  --color-brand: #e8542a;
+  --color-brand-dark: #c7431f;
+  --color-brand-tint: #fdede7;
+  --color-ink: #17181c;
+  --color-muted: #8a8d93;
+  --color-label: #4b4e56;
+  --color-border: #e4e4e1;
+  --color-border-soft: #eeeeec;
+  --color-chip: #f1f1ef;
+  --color-chip-text: #6b6e75;
+  --color-faint: #9a9da3;
+  --color-page: #fafaf9;
+}
+
+body {
+  margin: 0;
+  background: var(--color-page);
+  color: var(--color-ink);
+  font-family:
+    "Inter",
+    system-ui,
+    -apple-system,
+    sans-serif;
+}
