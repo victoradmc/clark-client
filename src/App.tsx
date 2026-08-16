@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Route, Routes } from "react-router-dom";
 import type { Role, Session } from "./data/clarkApi";
 import { getProfile, onSessionChange } from "./data/clarkApi";
+import i18n, { DEFAULT_LOCALE } from "./i18n";
 import LoginScreen from "./screens/LoginScreen";
 import AppShell from "./screens/AppShell";
 import HubScreen from "./screens/HubScreen";
@@ -25,19 +26,23 @@ export default function App() {
     });
   }, []);
 
-  // Drives only the Admin nav link's visibility — a UI convenience, not a
-  // security boundary. AdminScreen and every admin-only clarkApi call are
-  // independently guarded server-side (RLS, the admin_list_accounts RPC's
-  // own check, and the Edge Function's caller-role check).
+  // Drives the Admin nav link's visibility (a UI convenience, not a security
+  // boundary — every admin-only clarkApi call is independently guarded
+  // server-side) and the UI language — never browser-detected, always the
+  // signed-in Account's saved preference, reset to the default once signed
+  // out so a previous Account's language doesn't leak into the login screen.
   useEffect(() => {
     if (!session) {
       setRole(null);
+      void i18n.changeLanguage(DEFAULT_LOCALE);
       return;
     }
     let cancelled = false;
     getProfile()
       .then((profile) => {
-        if (!cancelled) setRole(profile.role);
+        if (cancelled) return;
+        setRole(profile.role);
+        void i18n.changeLanguage(profile.locale);
       })
       .catch(() => {
         if (!cancelled) setRole(null);

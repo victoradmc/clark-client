@@ -1,5 +1,6 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { createLesson, type LessonVisibility } from "../data/clarkApi";
 import {
   parseLessonJson,
@@ -12,6 +13,7 @@ import TabToggle from "../components/TabToggle";
 type UploadMode = "json" | "form";
 
 export default function UploadLessonScreen() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -48,7 +50,7 @@ export default function UploadLessonScreen() {
     } catch (err) {
       setParsed(null);
       setParseError(
-        err instanceof Error ? err.message : "Could not parse the upload.",
+        err instanceof Error ? err.message : t("uploadLesson.couldNotParse"),
       );
     }
   }
@@ -78,7 +80,7 @@ export default function UploadLessonScreen() {
       setPhase("publish");
     } catch (err) {
       setFormError(
-        err instanceof Error ? err.message : "Could not create this lesson.",
+        err instanceof Error ? err.message : t("uploadLesson.couldNotCreate"),
       );
     }
   }
@@ -98,7 +100,7 @@ export default function UploadLessonScreen() {
       navigate(`/lessons/${lesson.id}`);
     } catch (err) {
       setPublishError(
-        err instanceof Error ? err.message : "Could not publish this lesson.",
+        err instanceof Error ? err.message : t("uploadLesson.couldNotPublish"),
       );
     } finally {
       setPublishing(false);
@@ -109,15 +111,15 @@ export default function UploadLessonScreen() {
     return (
       <div className="max-w-[460px]">
         <div className="text-brand mb-1.5 text-xs font-bold tracking-[.06em] uppercase">
-          Lesson management
+          {t("uploadLesson.publishEyebrow")}
         </div>
         <h1 className="mb-6 text-[26px] font-extrabold tracking-[-0.02em]">
-          Publish your lesson
+          {t("uploadLesson.publishTitle")}
         </h1>
         <div className="grid gap-4">
           <div>
             <label className="text-label mb-1.5 block text-[12.5px] font-semibold">
-              Title
+              {t("uploadLesson.titleLabel")}
             </label>
             <input
               className="border-border focus:outline-brand w-full rounded-[11px] border bg-white px-3.5 py-2.5 text-sm focus:outline-2 focus:outline-offset-1"
@@ -131,7 +133,7 @@ export default function UploadLessonScreen() {
           </div>
           <div>
             <label className="text-label mb-2 block text-[12.5px] font-semibold">
-              Visibility
+              {t("uploadLesson.visibilityLabel")}
             </label>
             <div className="grid gap-2">
               <label
@@ -148,8 +150,7 @@ export default function UploadLessonScreen() {
                   onChange={() => setVisibility("public")}
                 />
                 <span className="text-[13.5px]">
-                  <strong>Public</strong> — anyone signed in can find and open
-                  it
+                  {t("uploadLesson.publicOption")}
                 </span>
               </label>
               <label
@@ -166,7 +167,7 @@ export default function UploadLessonScreen() {
                   onChange={() => setVisibility("private")}
                 />
                 <span className="text-[13.5px]">
-                  <strong>Private</strong> — only you can open it
+                  {t("uploadLesson.privateOption")}
                 </span>
               </label>
             </div>
@@ -182,14 +183,14 @@ export default function UploadLessonScreen() {
             onClick={() => void handlePublish()}
             className="bg-brand rounded-[11px] px-5 py-2.5 text-sm font-bold text-white disabled:opacity-60"
           >
-            {publishing ? "Publishing…" : "Save & publish"}
+            {publishing ? t("uploadLesson.publishing") : t("uploadLesson.savePublish")}
           </button>
           <button
             type="button"
             onClick={() => navigate("/")}
             className="text-muted rounded-[11px] bg-transparent px-4 py-2.5 text-sm font-semibold"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
         </div>
       </div>
@@ -200,12 +201,12 @@ export default function UploadLessonScreen() {
     <div>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-4">
         <div className="text-brand text-xs font-bold tracking-[.06em] uppercase">
-          Upload
+          {t("uploadLesson.eyebrow")}
         </div>
         <TabToggle
           options={[
-            { value: "json", label: "Upload JSON" },
-            { value: "form", label: "Write it yourself" },
+            { value: "json", label: t("uploadLesson.tabJson") },
+            { value: "form", label: t("uploadLesson.tabForm") },
           ]}
           value={mode}
           onChange={setMode}
@@ -215,11 +216,10 @@ export default function UploadLessonScreen() {
       {mode === "json" ? (
         <>
           <h1 className="mb-2 text-[28px] font-extrabold tracking-[-0.02em]">
-            Upload a lesson JSON
+            {t("uploadLesson.jsonTitle")}
           </h1>
           <p className="text-muted mb-5 max-w-[60ch] text-[13.5px]">
-            Pick the JSON file exported by your AI agent, or paste it below.
-            Expected fields: title, content (Markdown), subject, origin.
+            {t("uploadLesson.jsonDescription")}
           </p>
 
           <div className="mb-4">
@@ -248,14 +248,14 @@ export default function UploadLessonScreen() {
               onClick={handleParse}
               className="bg-brand rounded-[11px] px-5 py-2.5 text-sm font-bold text-white"
             >
-              Parse &amp; preview
+              {t("uploadLesson.parseAndPreview")}
             </button>
           </div>
 
           {parsed && (
             <div className="border-border-soft mt-6 max-w-[600px] rounded-2xl border bg-white p-[22px]">
               <div className="text-faint mb-2 text-[11.5px] font-bold tracking-[.06em] uppercase">
-                Preview
+                {t("uploadLesson.previewLabel")}
               </div>
               <div className="mb-2.5 text-lg font-bold">{parsed.title}</div>
               <div className="mb-3 flex gap-2">
@@ -270,7 +270,7 @@ export default function UploadLessonScreen() {
                 onClick={handleContinue}
                 className="border-border rounded-[10px] border bg-white px-[18px] py-2.5 text-[13.5px] font-semibold"
               >
-                Continue to publish settings
+                {t("uploadLesson.continueToPublish")}
               </button>
             </div>
           )}
@@ -278,17 +278,16 @@ export default function UploadLessonScreen() {
       ) : (
         <>
           <h1 className="mb-2 text-[28px] font-extrabold tracking-[-0.02em]">
-            Write a lesson
+            {t("uploadLesson.formTitle")}
           </h1>
           <p className="text-muted mb-5 max-w-[60ch] text-[13.5px]">
-            No JSON needed — fill in the title and subject, then paste or
-            type your content as Markdown.
+            {t("uploadLesson.formDescription")}
           </p>
 
           <form onSubmit={handleFormSubmit} className="grid max-w-[600px] gap-4">
             <div>
               <label className="text-label mb-1.5 block text-[12.5px] font-semibold">
-                Title
+                {t("uploadLesson.titleLabel")}
               </label>
               <input
                 className="border-border focus:outline-brand w-full rounded-[11px] border bg-white px-3.5 py-2.5 text-sm focus:outline-2 focus:outline-offset-1"
@@ -298,7 +297,7 @@ export default function UploadLessonScreen() {
             </div>
             <div>
               <label className="text-label mb-1.5 block text-[12.5px] font-semibold">
-                Subject
+                {t("uploadLesson.subjectLabel")}
               </label>
               <input
                 className="border-border focus:outline-brand w-full rounded-[11px] border bg-white px-3.5 py-2.5 text-sm focus:outline-2 focus:outline-offset-1"
@@ -308,13 +307,13 @@ export default function UploadLessonScreen() {
             </div>
             <div>
               <label className="text-label mb-1.5 block text-[12.5px] font-semibold">
-                Content (Markdown)
+                {t("uploadLesson.contentLabel")}
               </label>
               <textarea
                 className="border-border focus:outline-brand min-h-[320px] w-full rounded-2xl border bg-white p-4 text-sm leading-relaxed focus:outline-2 focus:outline-offset-1"
                 value={formContent}
                 onChange={(e) => setFormContent(e.target.value)}
-                placeholder={"## Heading\nWrite your lesson content here using Markdown…"}
+                placeholder={t("uploadLesson.contentPlaceholder")}
               />
             </div>
             {formError && (
@@ -324,7 +323,7 @@ export default function UploadLessonScreen() {
               type="submit"
               className="bg-brand w-fit rounded-[11px] px-5 py-2.5 text-sm font-bold text-white"
             >
-              Continue to publish settings
+              {t("uploadLesson.continueToPublish")}
             </button>
           </form>
         </>

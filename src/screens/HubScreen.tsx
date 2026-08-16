@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   getLessons,
   getOwnerNames,
@@ -10,9 +11,14 @@ import {
 import Badge from "../components/Badge";
 import TabToggle from "../components/TabToggle";
 
+// Internal sentinel value for the subject filter's "no filter" state — never
+// shown to the user directly (the <option>'s rendered text is translated
+// separately), so it doesn't need to match any real Subject or vary by
+// locale.
 const ALL_SUBJECTS = "All subjects";
 
 export default function HubScreen() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [tab, setTab] = useState<HubTab>("public");
   const [search, setSearch] = useState("");
@@ -42,9 +48,7 @@ export default function HubScreen() {
         if (!cancelled) setOwnerNames(names);
       } catch (err) {
         if (!cancelled) {
-          setError(
-            err instanceof Error ? err.message : "Could not load lessons.",
-          );
+          setError(err instanceof Error ? err.message : t("hub.couldNotLoad"));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -53,6 +57,8 @@ export default function HubScreen() {
     return () => {
       cancelled = true;
     };
+    // Deliberately not depending on `t` — its reference changes on every
+    // language switch, which would otherwise re-run this fetch mid-browse.
   }, [tab, search]);
 
   function handleTabChange(next: HubTab) {
@@ -83,7 +89,7 @@ export default function HubScreen() {
   );
 
   function ownerLabel(lesson: Lesson): string {
-    if (lesson.owner_id === currentUserId) return "You";
+    if (lesson.owner_id === currentUserId) return t("common.you");
     return ownerNames[lesson.owner_id] ?? "…";
   }
 
@@ -92,16 +98,16 @@ export default function HubScreen() {
       <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="text-brand mb-1.5 text-xs font-bold tracking-[.06em] uppercase">
-            Lesson Hub
+            {t("hub.eyebrow")}
           </div>
           <h1 className="text-[30px] font-extrabold tracking-[-0.02em]">
-            Find something to learn
+            {t("hub.title")}
           </h1>
         </div>
         <TabToggle
           options={[
-            { value: "public", label: "Public" },
-            { value: "mine", label: "My lessons" },
+            { value: "public", label: t("hub.tabPublic") },
+            { value: "mine", label: t("hub.tabMine") },
           ]}
           value={tab}
           onChange={handleTabChange}
@@ -111,7 +117,7 @@ export default function HubScreen() {
       <div className="mb-7 flex flex-wrap gap-3">
         <input
           className="border-border focus:outline-brand min-w-[220px] flex-1 rounded-[11px] border bg-white px-3.5 py-2.5 text-sm focus:outline-2 focus:outline-offset-1"
-          placeholder="Search by title…"
+          placeholder={t("hub.searchPlaceholder")}
           value={search}
           onChange={(e) => handleSearchChange(e.target.value)}
         />
@@ -120,7 +126,7 @@ export default function HubScreen() {
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
         >
-          <option value={ALL_SUBJECTS}>{ALL_SUBJECTS}</option>
+          <option value={ALL_SUBJECTS}>{t("hub.allSubjects")}</option>
           {subjectOptions.map((s) => (
             <option key={s} value={s}>
               {s}
@@ -140,23 +146,27 @@ export default function HubScreen() {
             <div className="flex items-center justify-between">
               <Badge tone="brand">{lesson.subject}</Badge>
               <span className="text-faint text-[11.5px] font-semibold">
-                {lesson.visibility === "public" ? "Public" : "Private"}
+                {lesson.visibility === "public"
+                  ? t("common.public")
+                  : t("common.private")}
               </span>
             </div>
             <div className="text-[16.5px] leading-tight font-bold tracking-[-0.01em]">
               {lesson.title}
             </div>
             <p className="text-muted flex-1 text-[12.5px]">
-              Source: {lesson.origin}
+              {t("common.source", { origin: lesson.origin })}
             </p>
-            <div className="text-faint text-[12px]">By {ownerLabel(lesson)}</div>
+            <div className="text-faint text-[12px]">
+              {t("common.byOwner", { name: ownerLabel(lesson) })}
+            </div>
             <div className="mt-1.5 flex gap-2">
               <button
                 type="button"
                 onClick={() => navigate(`/lessons/${lesson.id}`)}
                 className="bg-ink flex-1 rounded-[10px] px-3.5 py-2.5 text-[13px] font-semibold text-white"
               >
-                Open
+                {t("hub.open")}
               </button>
               {lesson.owner_id === currentUserId && (
                 <button
@@ -164,7 +174,7 @@ export default function HubScreen() {
                   onClick={() => navigate(`/lessons/${lesson.id}/manage`)}
                   className="border-border text-label rounded-[10px] border bg-white px-3 py-2.5 text-[13px] font-semibold"
                 >
-                  Manage
+                  {t("hub.manage")}
                 </button>
               )}
             </div>
@@ -173,9 +183,7 @@ export default function HubScreen() {
       </div>
 
       {!loading && !error && visibleLessons.length === 0 && (
-        <p className="text-faint mt-8 text-sm">
-          No lessons match. Try a different search or subject.
-        </p>
+        <p className="text-faint mt-8 text-sm">{t("hub.noMatch")}</p>
       )}
     </div>
   );

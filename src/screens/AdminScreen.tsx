@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getProfile } from "../data/clarkApi";
 import TabToggle from "../components/TabToggle";
 import AdminAccountsTab from "./AdminAccountsTab";
@@ -7,6 +8,7 @@ import AdminLessonsTab from "./AdminLessonsTab";
 type AdminTab = "accounts" | "lessons";
 
 export default function AdminScreen() {
+  const { t } = useTranslation();
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [tab, setTab] = useState<AdminTab>("accounts");
 
@@ -25,15 +27,11 @@ export default function AdminScreen() {
   }, []);
 
   if (authorized === null) {
-    return <p className="text-muted text-sm">Loading…</p>;
+    return <p className="text-muted text-sm">{t("common.loading")}</p>;
   }
 
   if (!authorized) {
-    return (
-      <p className="text-brand-dark text-sm">
-        You don't have permission to view this page.
-      </p>
-    );
+    return <p className="text-brand-dark text-sm">{t("admin.notAllowed")}</p>;
   }
 
   return (
@@ -41,16 +39,16 @@ export default function AdminScreen() {
       <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="text-brand mb-1.5 text-xs font-bold tracking-[.06em] uppercase">
-            Admin
+            {t("admin.eyebrow")}
           </div>
           <h1 className="text-[30px] font-extrabold tracking-[-0.02em]">
-            Control panel
+            {t("admin.title")}
           </h1>
         </div>
         <TabToggle
           options={[
-            { value: "accounts", label: "Accounts" },
-            { value: "lessons", label: "Lessons" },
+            { value: "accounts", label: t("admin.tabAccounts") },
+            { value: "lessons", label: t("admin.tabLessons") },
           ]}
           value={tab}
           onChange={setTab}

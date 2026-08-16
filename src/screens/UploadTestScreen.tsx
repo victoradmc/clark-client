@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { getLessons, publishTest, type Lesson, type Question } from "../data/clarkApi";
 import { parseTestJson } from "../data/testValidation";
 
 export default function UploadTestScreen() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -29,7 +31,7 @@ export default function UploadTestScreen() {
       } catch (err) {
         if (!cancelled) {
           setLoadError(
-            err instanceof Error ? err.message : "Could not load your lessons.",
+            err instanceof Error ? err.message : t("uploadTest.couldNotLoad"),
           );
         }
       }
@@ -37,6 +39,7 @@ export default function UploadTestScreen() {
     return () => {
       cancelled = true;
     };
+    // Deliberately not depending on `t` — see HubScreen.tsx for why.
   }, []);
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
@@ -55,7 +58,7 @@ export default function UploadTestScreen() {
     } catch (err) {
       setParsed(null);
       setParseError(
-        err instanceof Error ? err.message : "Could not parse the upload.",
+        err instanceof Error ? err.message : t("uploadTest.couldNotParse"),
       );
     }
   }
@@ -69,7 +72,7 @@ export default function UploadTestScreen() {
       navigate(`/lessons/${lessonId}`);
     } catch (err) {
       setPublishError(
-        err instanceof Error ? err.message : "Could not publish this test.",
+        err instanceof Error ? err.message : t("uploadTest.couldNotPublish"),
       );
     } finally {
       setPublishing(false);
@@ -81,33 +84,30 @@ export default function UploadTestScreen() {
   }
 
   if (!myLessons) {
-    return <p className="text-muted text-sm">Loading…</p>;
+    return <p className="text-muted text-sm">{t("common.loading")}</p>;
   }
 
   if (myLessons.length === 0) {
-    return (
-      <p className="text-muted text-sm">
-        Upload a lesson first — a Test attaches to one of your own Lessons.
-      </p>
-    );
+    return <p className="text-muted text-sm">{t("uploadTest.noLessonsYet")}</p>;
   }
 
   return (
     <div>
       <div className="text-brand mb-1.5 text-xs font-bold tracking-[.06em] uppercase">
-        Upload
+        {t("uploadTest.eyebrow")}
       </div>
       <h1 className="mb-2 text-[28px] font-extrabold tracking-[-0.02em]">
-        Upload a test JSON
+        {t("uploadTest.title")}
       </h1>
       <p className="text-muted mb-5 max-w-[60ch] text-[13.5px]">
-        Attach a set of questions to one of your lessons. Expected shape: an
-        array of {"{ question, options, answer }"}.
+        {t("uploadTest.description", {
+          shape: "{ question, options, answer }",
+        })}
       </p>
 
       <div className="mb-4 max-w-[320px]">
         <label className="text-label mb-1.5 block text-[12.5px] font-semibold">
-          Attach to lesson
+          {t("uploadTest.attachToLesson")}
         </label>
         <select
           className="border-border w-full rounded-[11px] border bg-white px-3.5 py-2.5 text-sm"
@@ -148,14 +148,14 @@ export default function UploadTestScreen() {
           onClick={handleParse}
           className="bg-brand rounded-[11px] px-5 py-2.5 text-sm font-bold text-white"
         >
-          Parse &amp; preview
+          {t("uploadTest.parseAndPreview")}
         </button>
       </div>
 
       {parsed && (
         <div className="mt-6 grid max-w-[600px] gap-2.5">
           <div className="text-faint text-[11.5px] font-bold tracking-[.06em] uppercase">
-            Preview — {parsed.length} question{parsed.length === 1 ? "" : "s"}
+            {t("uploadTest.previewCount", { count: parsed.length })}
           </div>
           {parsed.map((question, i) => (
             <div
@@ -166,7 +166,7 @@ export default function UploadTestScreen() {
                 {question.question}
               </div>
               <div className="text-faint mt-1 text-xs">
-                Answer: {question.answer}
+                {t("uploadTest.answer", { answer: question.answer })}
               </div>
             </div>
           ))}
@@ -179,7 +179,7 @@ export default function UploadTestScreen() {
             onClick={() => void handlePublish()}
             className="border-border justify-self-start rounded-[10px] border bg-white px-[18px] py-2.5 text-[13.5px] font-semibold disabled:opacity-60"
           >
-            {publishing ? "Attaching…" : "Attach test to lesson"}
+            {publishing ? t("uploadTest.attaching") : t("uploadTest.attachButton")}
           </button>
         </div>
       )}

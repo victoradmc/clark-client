@@ -15,7 +15,7 @@ afterEach(async () => {
 });
 
 describe("clarkApi.updateProfile", () => {
-  it("persists name, email, and bio for the caller's own profile", async () => {
+  it("persists name, email, bio, and locale for the caller's own profile", async () => {
     await ensureFixtureAccount(
       "profile-update@clark.test",
       "student",
@@ -27,14 +27,27 @@ describe("clarkApi.updateProfile", () => {
       name: "New Name",
       email: "new-address@clark.test",
       bio: "A short bio.",
+      locale: "pt-BR",
     });
 
     expect(updated.name).toBe("New Name");
     expect(updated.email).toBe("new-address@clark.test");
     expect(updated.bio).toBe("A short bio.");
+    expect(updated.locale).toBe("pt-BR");
 
+    // Round-trips through getProfile(), not just the update response.
     const fetched = await getProfile();
     expect(fetched).toEqual(updated);
+  });
+
+  it("defaults locale to 'en' for a newly-created Account", async () => {
+    await ensureFixtureAccount(
+      "profile-locale-default@clark.test",
+      "student",
+      "Default Locale",
+    );
+    await login("profile-locale-default@clark.test", FIXTURE_PASSWORD);
+    expect((await getProfile()).locale).toBe("en");
   });
 });
 

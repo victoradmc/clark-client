@@ -27,12 +27,15 @@ export type Lesson = {
 
 export type Role = "student" | "admin";
 
+export type Locale = "en" | "pt-BR";
+
 export type Profile = {
   id: string;
   name: string;
   email: string;
   bio: string;
   role: Role;
+  locale: Locale;
 };
 
 export async function login(email: string, password: string): Promise<void> {
@@ -87,6 +90,7 @@ export async function updateProfile(updates: {
   name: string;
   email: string;
   bio: string;
+  locale: Locale;
 }): Promise<Profile> {
   const session = await getSession();
   if (!session) throw new Error("Not signed in.");

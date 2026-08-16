@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { login } from "../data/clarkApi";
 
 export default function LoginScreen() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -14,7 +16,7 @@ export default function LoginScreen() {
     try {
       await login(email, password);
     } catch {
-      setError("Incorrect email or password.");
+      setError(t("login.incorrectCredentials"));
     } finally {
       setSubmitting(false);
     }
@@ -26,22 +28,20 @@ export default function LoginScreen() {
         <div className="mb-7 flex items-center gap-2">
           <div className="h-7 w-7 rounded-[9px] bg-[#E8542A]" />
           <span className="text-[16px] font-bold tracking-[-0.01em]">
-            Clark
+            {t("nav.appName")}
           </span>
         </div>
         <h1 className="mb-1.5 text-[26px] font-extrabold tracking-[-0.02em]">
-          Welcome back
+          {t("login.welcomeBack")}
         </h1>
-        <p className="mb-6 text-[13px] text-[#8A8D93]">
-          Sign in with your Clark account.
-        </p>
+        <p className="mb-6 text-[13px] text-[#8A8D93]">{t("login.subtitle")}</p>
         <form className="grid gap-3.5" onSubmit={handleSubmit}>
           <div>
             <label
               htmlFor="email"
               className="mb-1.5 block text-[12.5px] font-semibold text-[#4B4E56]"
             >
-              Email
+              {t("login.email")}
             </label>
             <input
               id="email"
@@ -59,7 +59,7 @@ export default function LoginScreen() {
               htmlFor="password"
               className="mb-1.5 block text-[12.5px] font-semibold text-[#4B4E56]"
             >
-              Password
+              {t("login.password")}
             </label>
             <input
               id="password"
@@ -78,7 +78,7 @@ export default function LoginScreen() {
             disabled={submitting}
             className="mt-1.5 w-full rounded-[11px] bg-[#E8542A] py-3 text-[14.5px] font-bold text-white shadow-[0_8px_20px_rgba(232,84,42,.28)] disabled:opacity-60"
           >
-            {submitting ? "Logging in…" : "Log in"}
+            {submitting ? t("login.loggingIn") : t("login.logIn")}
           </button>
         </form>
       </div>

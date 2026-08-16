@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { getLesson, type Lesson } from "../data/clarkApi";
 
 export default function TakeTestScreen() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const [lesson, setLesson] = useState<Lesson | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // A flag, not a pre-translated string — see LessonViewScreen.tsx for why.
+  const [notFound, setNotFound] = useState(false);
 
   // qIndex -> selected option index. Nothing here is ever persisted, so a
   // fresh mount (re-navigating from the Lesson view) always starts empty.
@@ -21,13 +24,14 @@ export default function TakeTestScreen() {
         if (!cancelled) setLesson(found);
       } catch {
         if (!cancelled) {
-          setError("This lesson doesn't exist or isn't visible to you.");
+          setNotFound(true);
         }
       }
     })();
     return () => {
       cancelled = true;
     };
+    // Deliberately not depending on `t` — see HubScreen.tsx for why.
   }, [id]);
 
   function selectAnswer(qIndex: number, optIndex: number) {
@@ -35,12 +39,12 @@ export default function TakeTestScreen() {
     setAnswers((prev) => ({ ...prev, [qIndex]: optIndex }));
   }
 
-  if (error) {
-    return <p className="text-brand-dark text-sm">{error}</p>;
+  if (notFound) {
+    return <p className="text-brand-dark text-sm">{t("common.lessonNotVisible")}</p>;
   }
 
   if (!lesson) {
-    return <p className="text-muted text-sm">Loading…</p>;
+    return <p className="text-muted text-sm">{t("common.loading")}</p>;
   }
 
   const questions = lesson.test ?? [];
@@ -54,10 +58,10 @@ export default function TakeTestScreen() {
         to={`/lessons/${id}`}
         className="text-muted mb-5 inline-block text-[13.5px] font-semibold no-underline"
       >
-        ← Back to lesson
+        {t("takeTest.backToLesson")}
       </Link>
       <div className="text-brand mb-1.5 text-xs font-bold tracking-[.06em] uppercase">
-        Test
+        {t("takeTest.eyebrow")}
       </div>
       <h1 className="mb-7 text-[26px] font-extrabold tracking-[-0.02em]">
         {lesson.title}
@@ -66,10 +70,13 @@ export default function TakeTestScreen() {
       {submitted && (
         <div className="bg-ink mb-7 rounded-2xl p-6 text-white">
           <div className="mb-1.5 text-[11.5px] font-bold tracking-[.06em] text-[#F0A78C] uppercase">
-            Score
+            {t("takeTest.score")}
           </div>
           <div className="text-[32px] font-extrabold">
-            {correctCount} / {questions.length} correct
+            {t("takeTest.scoreValue", {
+              correct: correctCount,
+              total: questions.length,
+            })}
           </div>
         </div>
       )}
@@ -122,7 +129,7 @@ export default function TakeTestScreen() {
                           : "bg-brand-tint text-brand-dark"
                       }`}
                     >
-                      {isCorrectOpt ? "Correct answer" : "Your answer"}
+                      {isCorrectOpt ? t("takeTest.correctAnswer") : t("takeTest.yourAnswer")}
                     </span>
                   )}
                 </label>
@@ -138,7 +145,7 @@ export default function TakeTestScreen() {
           onClick={() => setSubmitted(true)}
           className="bg-brand rounded-[11px] px-[22px] py-3 text-[14.5px] font-bold text-white"
         >
-          Submit answers
+          {t("takeTest.submit")}
         </button>
       )}
       {submitted && (
@@ -146,7 +153,7 @@ export default function TakeTestScreen() {
           to={`/lessons/${id}`}
           className="border-border inline-block rounded-[11px] border bg-white px-[22px] py-3 text-[14.5px] font-semibold no-underline"
         >
-          Done
+          {t("takeTest.done")}
         </Link>
       )}
     </div>
