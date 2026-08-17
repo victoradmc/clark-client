@@ -75,6 +75,7 @@ export const en = {
       "No JSON needed — fill in the title and subject, then paste or type your content as Markdown.",
     titleLabel: "Title",
     subjectLabel: "Subject",
+    originLabel: "Origin (optional)",
     contentLabel: "Content (Markdown)",
     contentPlaceholder:
       "## Heading\nWrite your lesson content here using Markdown…",

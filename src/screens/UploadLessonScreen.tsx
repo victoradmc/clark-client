@@ -27,6 +27,7 @@ export default function UploadLessonScreen() {
 
   const [formTitle, setFormTitle] = useState("");
   const [formSubject, setFormSubject] = useState("");
+  const [formOrigin, setFormOrigin] = useState("");
   const [formContent, setFormContent] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -71,6 +72,7 @@ export default function UploadLessonScreen() {
         title: formTitle,
         content: formContent,
         subject: formSubject,
+        origin: formOrigin,
       });
       setFormError(null);
       setParsed(fields);
@@ -304,6 +306,16 @@ export default function UploadLessonScreen() {
                 className="border-border focus:outline-brand w-full rounded-[11px] border bg-white px-3.5 py-2.5 text-sm focus:outline-2 focus:outline-offset-1"
                 value={formSubject}
                 onChange={(e) => setFormSubject(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-label mb-1.5 block text-[12.5px] font-semibold">
+                {t("uploadLesson.originLabel")}
+              </label>
+              <input
+                className="border-border focus:outline-brand w-full rounded-[11px] border bg-white px-3.5 py-2.5 text-sm focus:outline-2 focus:outline-offset-1"
+                value={formOrigin}
+                onChange={(e) => setFormOrigin(e.target.value)}
               />
             </div>
             <div>

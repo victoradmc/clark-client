@@ -70,6 +70,7 @@ export const ptBR = {
       "Sem necessidade de JSON — preencha o título e a matéria, depois cole ou digite o conteúdo em Markdown.",
     titleLabel: "Título",
     subjectLabel: "Matéria",
+    originLabel: "Origem (opcional)",
     contentLabel: "Conteúdo (Markdown)",
     contentPlaceholder:
       "## Título\nEscreva o conteúdo da sua aula aqui usando Markdown…",
