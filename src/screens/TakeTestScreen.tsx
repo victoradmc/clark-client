@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { getLesson, type Lesson } from "../data/clarkApi";
+import { shuffleArray } from "../data/shuffleArray";
 
 export default function TakeTestScreen() {
   const { t } = useTranslation();
@@ -10,10 +11,25 @@ export default function TakeTestScreen() {
   // A flag, not a pre-translated string — see LessonViewScreen.tsx for why.
   const [notFound, setNotFound] = useState(false);
 
-  // qIndex -> selected option index. Nothing here is ever persisted, so a
+  // qIndex -> selected option text (not index — each Question's options are
+  // shuffled below, so an index would mean different things depending on
+  // which array it's read against). Nothing here is ever persisted, so a
   // fresh mount (re-navigating from the Lesson view) always starts empty.
-  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [answers, setAnswers] = useState<Record<number, string>>({});
   const [submitted, setSubmitted] = useState(false);
+
+  // Randomized once per mount (keyed on `lesson`, which only changes when a
+  // new fetch resolves) so the option order stays stable across re-renders
+  // within one attempt but can differ on a fresh attempt — never mutates
+  // `lesson.test` itself.
+  const questions = useMemo(
+    () =>
+      (lesson?.test ?? []).map((q) => ({
+        ...q,
+        options: shuffleArray(q.options),
+      })),
+    [lesson],
+  );
 
   useEffect(() => {
     if (!id) return;
@@ -34,9 +50,9 @@ export default function TakeTestScreen() {
     // Deliberately not depending on `t` — see HubScreen.tsx for why.
   }, [id]);
 
-  function selectAnswer(qIndex: number, optIndex: number) {
+  function selectAnswer(qIndex: number, option: string) {
     if (submitted) return;
-    setAnswers((prev) => ({ ...prev, [qIndex]: optIndex }));
+    setAnswers((prev) => ({ ...prev, [qIndex]: option }));
   }
 
   if (notFound) {
@@ -47,9 +63,8 @@ export default function TakeTestScreen() {
     return <p className="text-muted text-sm">{t("common.loading")}</p>;
   }
 
-  const questions = lesson.test ?? [];
   const correctCount = submitted
-    ? questions.filter((q, qi) => q.options[answers[qi]] === q.answer).length
+    ? questions.filter((q, qi) => answers[qi] === q.answer).length
     : 0;
 
   return (
@@ -88,7 +103,7 @@ export default function TakeTestScreen() {
           </p>
           <div className="grid gap-2">
             {question.options.map((option, oi) => {
-              const isSelected = answers[qi] === oi;
+              const isSelected = answers[qi] === option;
               const isCorrectOpt = option === question.answer;
 
               let borderClass = "border-border";
@@ -117,7 +132,7 @@ export default function TakeTestScreen() {
                       name={`question-${qi}`}
                       checked={isSelected}
                       disabled={submitted}
-                      onChange={() => selectAnswer(qi, oi)}
+                      onChange={() => selectAnswer(qi, option)}
                     />
                     {option}
                   </span>
