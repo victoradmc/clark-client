@@ -16,7 +16,7 @@ export default function AdminLessonsTab() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
-  const { errors: rowErrors, run: runRowAction } = useRowActions();
+  const { errors: rowErrors, pending: rowPending, run: runRowAction } = useRowActions();
 
   async function loadLessons() {
     try {
@@ -100,10 +100,13 @@ export default function AdminLessonsTab() {
                 </span>
                 <button
                   type="button"
+                  disabled={rowPending[lesson.id]}
                   onClick={() => void handleDelete(lesson)}
-                  className="border-brand text-brand justify-self-end rounded-lg border-[1.5px] bg-white px-2.5 py-1.5 text-xs font-bold"
+                  className="border-brand text-brand justify-self-end rounded-lg border-[1.5px] bg-white px-2.5 py-1.5 text-xs font-bold disabled:opacity-60"
                 >
-                  {t("admin.lessons.delete")}
+                  {rowPending[lesson.id]
+                    ? t("admin.lessons.deleting")
+                    : t("admin.lessons.delete")}
                 </button>
                 {rowErrors[lesson.id] && (
                   <p className="text-brand-dark col-span-full text-[12px]">

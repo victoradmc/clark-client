@@ -29,8 +29,31 @@ export default function AdminAccountsTab() {
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
 
-  const { errors: rowErrors, run: runRowAction } = useRowActions();
+  // One useRowActions instance per distinct row action (not shared) so a
+  // request in flight for one action doesn't disable an unrelated action on
+  // the same row — see useRowActions.ts.
+  const {
+    errors: roleChangeErrors,
+    pending: roleChangePending,
+    run: runRoleChangeAction,
+  } = useRowActions();
+  const {
+    errors: resetPasswordErrors,
+    pending: resetPasswordPending,
+    run: runResetPasswordAction,
+  } = useRowActions();
+  const {
+    errors: deleteErrors,
+    pending: deletePending,
+    run: runDeleteAction,
+  } = useRowActions();
   const [resetSentIds, setResetSentIds] = useState<Record<string, boolean>>({});
+  // Only one Account can be armed for delete confirmation at a time —
+  // clicking Delete again on a different row simply re-arms that row
+  // instead, same as picking a new target.
+  const [deleteConfirmingId, setDeleteConfirmingId] = useState<string | null>(
+    null,
+  );
 
   const [accessRequests, setAccessRequests] = useState<AccessRequest[] | null>(null);
   const [requestsLoadError, setRequestsLoadError] = useState<string | null>(null);
@@ -114,7 +137,7 @@ export default function AdminAccountsTab() {
   }
 
   async function handleRoleChange(id: string, role: Role) {
-    await runRowAction(
+    await runRoleChangeAction(
       id,
       async () => {
         await updateAccountRole(id, role);
@@ -125,7 +148,7 @@ export default function AdminAccountsTab() {
   }
 
   async function handleResetPassword(account: Account) {
-    await runRowAction(
+    await runResetPasswordAction(
       account.id,
       async () => {
         await requestPasswordReset(account.email);
@@ -139,7 +162,12 @@ export default function AdminAccountsTab() {
   }
 
   async function handleDelete(id: string) {
-    await runRowAction(
+    if (deleteConfirmingId !== id) {
+      setDeleteConfirmingId(id);
+      return;
+    }
+    setDeleteConfirmingId(null);
+    await runDeleteAction(
       id,
       async () => {
         await deleteAccount(id);
@@ -294,8 +322,9 @@ export default function AdminAccountsTab() {
                 <span className="font-semibold">{account.name}</span>
                 <span className="text-muted">{account.email}</span>
                 <select
-                  className="border-border rounded-lg border px-2 py-1.5 text-[12.5px]"
+                  className="border-border rounded-lg border px-2 py-1.5 text-[12.5px] disabled:opacity-60"
                   value={account.role}
+                  disabled={roleChangePending[account.id]}
                   onChange={(e) =>
                     void handleRoleChange(account.id, e.target.value as Role)
                   }
@@ -317,8 +346,9 @@ export default function AdminAccountsTab() {
                 <div className="flex justify-end gap-2">
                   <button
                     type="button"
+                    disabled={resetPasswordPending[account.id]}
                     onClick={() => void handleResetPassword(account)}
-                    className="border-border rounded-lg border bg-white px-2.5 py-1.5 text-xs font-semibold"
+                    className="border-border rounded-lg border bg-white px-2.5 py-1.5 text-xs font-semibold disabled:opacity-60"
                   >
                     {resetSentIds[account.id]
                       ? t("admin.accounts.resetSent")
@@ -326,15 +356,24 @@ export default function AdminAccountsTab() {
                   </button>
                   <button
                     type="button"
+                    disabled={deletePending[account.id]}
                     onClick={() => void handleDelete(account.id)}
-                    className="border-brand text-brand rounded-lg border-[1.5px] bg-white px-2.5 py-1.5 text-xs font-bold"
+                    className="border-brand text-brand rounded-lg border-[1.5px] bg-white px-2.5 py-1.5 text-xs font-bold disabled:opacity-60"
                   >
-                    {t("admin.accounts.delete")}
+                    {deletePending[account.id]
+                      ? t("admin.accounts.deleting")
+                      : deleteConfirmingId === account.id
+                        ? t("admin.accounts.confirmDelete")
+                        : t("admin.accounts.delete")}
                   </button>
                 </div>
-                {rowErrors[account.id] && (
+                {(roleChangeErrors[account.id] ||
+                  resetPasswordErrors[account.id] ||
+                  deleteErrors[account.id]) && (
                   <p className="text-brand-dark col-span-full text-[12px]">
-                    {rowErrors[account.id]}
+                    {roleChangeErrors[account.id] ||
+                      resetPasswordErrors[account.id] ||
+                      deleteErrors[account.id]}
                   </p>
                 )}
               </div>
