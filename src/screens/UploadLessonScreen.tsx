@@ -229,7 +229,11 @@ export default function UploadLessonScreen() {
             />
           </div>
 
+          <label htmlFor="lesson-json" className="sr-only">
+            {t("uploadLesson.jsonTextareaLabel")}
+          </label>
           <textarea
+            id="lesson-json"
             className="border-border focus:outline-brand min-h-[280px] w-full rounded-2xl border bg-white p-4 font-mono text-[12.5px] leading-relaxed focus:outline-2 focus:outline-offset-1"
             value={text}
             onChange={(e) => setText(e.target.value)}

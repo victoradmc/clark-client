@@ -307,7 +307,7 @@ export default function AdminAccountsTab() {
       {accounts !== null && (
         <>
           <div className="border-border-soft overflow-hidden rounded-2xl border bg-white">
-            <div className="text-faint grid grid-cols-[1.4fr_1.6fr_130px_130px_220px] gap-2.5 border-b border-[#EEEEEC] px-5 py-3 text-[11.5px] font-bold tracking-[.04em] uppercase">
+            <div className="text-faint grid grid-cols-[1.4fr_1.6fr_130px_130px_220px] gap-2.5 border-b border-[#EEEEEC] px-5 py-3 text-[11.5px] font-bold tracking-[.04em] uppercase max-md:hidden">
               <span>{t("admin.accounts.columnName")}</span>
               <span>{t("admin.accounts.columnEmail")}</span>
               <span>{t("admin.accounts.columnRole")}</span>
@@ -317,7 +317,7 @@ export default function AdminAccountsTab() {
             {visibleAccounts.map((account) => (
               <div
                 key={account.id}
-                className="grid grid-cols-[1.4fr_1.6fr_130px_130px_220px] items-center gap-2.5 border-b border-[#F3F3F1] px-5 py-3.5 text-[13.5px] last:border-b-0"
+                className="grid grid-cols-[1.4fr_1.6fr_130px_130px_220px] items-center gap-2.5 border-b border-[#F3F3F1] px-5 py-3.5 text-[13.5px] last:border-b-0 max-md:grid-cols-1 max-md:items-start max-md:gap-1.5 max-md:py-4"
               >
                 <span className="font-semibold">{account.name}</span>
                 <span className="text-muted">{account.email}</span>

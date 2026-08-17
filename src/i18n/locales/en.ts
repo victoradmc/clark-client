@@ -50,6 +50,7 @@ export const en = {
     title: "Find something to learn",
     tabPublic: "Public",
     tabMine: "My lessons",
+    searchLabel: "Search lessons",
     searchPlaceholder: "Search by title…",
     allSubjects: "All subjects",
     open: "Open",
@@ -64,6 +65,7 @@ export const en = {
     jsonTitle: "Upload a lesson JSON",
     jsonDescription:
       "Pick the JSON file exported by your AI agent, or paste it below. Expected fields: title, content (Markdown), subject, origin.",
+    jsonTextareaLabel: "Lesson JSON",
     parseAndPreview: "Parse & preview",
     couldNotParse: "Could not parse the upload.",
     previewLabel: "Preview",
@@ -93,6 +95,7 @@ export const en = {
       "Attach a set of questions to one of your lessons. Expected shape: an array of {{shape}}.",
     noLessonsYet: "Upload a lesson first — a Test attaches to one of your own Lessons.",
     attachToLesson: "Attach to lesson",
+    jsonTextareaLabel: "Test JSON",
     parseAndPreview: "Parse & preview",
     couldNotParse: "Could not parse the upload.",
     previewCount_one: "Preview — {{count}} question",

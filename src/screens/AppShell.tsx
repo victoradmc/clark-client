@@ -20,7 +20,7 @@ export default function AppShell({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <nav className="border-border-soft sticky top-0 z-10 flex h-16 items-center gap-7 border-b bg-white px-8">
+      <nav className="border-border-soft sticky top-0 z-10 flex h-16 flex-wrap items-center gap-x-7 gap-y-2 border-b bg-white px-8 max-md:h-auto max-md:gap-x-4 max-md:py-3">
         <div className="mr-2 flex items-center gap-2">
           <div className="bg-brand h-[22px] w-[22px] rounded-[7px]" />
           <span className="text-[15px] font-bold tracking-[-0.01em]">

@@ -116,7 +116,11 @@ export default function HubScreen() {
       </div>
 
       <div className="mb-7 flex flex-wrap gap-3">
+        <label htmlFor="hub-search" className="sr-only">
+          {t("hub.searchLabel")}
+        </label>
         <input
+          id="hub-search"
           className="border-border focus:outline-brand min-w-[220px] flex-1 rounded-[11px] border bg-white px-3.5 py-2.5 text-sm focus:outline-2 focus:outline-offset-1"
           placeholder={t("hub.searchPlaceholder")}
           value={search}

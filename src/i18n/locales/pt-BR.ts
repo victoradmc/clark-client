@@ -45,6 +45,7 @@ export const ptBR = {
     title: "Encontre algo para aprender",
     tabPublic: "Públicas",
     tabMine: "Minhas aulas",
+    searchLabel: "Buscar aulas",
     searchPlaceholder: "Buscar por título…",
     allSubjects: "Todas as matérias",
     open: "Abrir",
@@ -59,6 +60,7 @@ export const ptBR = {
     jsonTitle: "Enviar um JSON de aula",
     jsonDescription:
       "Escolha o arquivo JSON exportado pelo seu agente de IA, ou cole abaixo. Campos esperados: title, content (Markdown), subject, origin.",
+    jsonTextareaLabel: "JSON da aula",
     parseAndPreview: "Analisar e pré-visualizar",
     couldNotParse: "Não foi possível analisar o envio.",
     previewLabel: "Pré-visualização",
@@ -89,6 +91,7 @@ export const ptBR = {
     noLessonsYet:
       "Envie uma aula primeiro — um Teste é anexado a uma de suas próprias Aulas.",
     attachToLesson: "Anexar à aula",
+    jsonTextareaLabel: "JSON do teste",
     parseAndPreview: "Analisar e pré-visualizar",
     couldNotParse: "Não foi possível analisar o envio.",
     previewCount_one: "Pré-visualização — {{count}} pergunta",
