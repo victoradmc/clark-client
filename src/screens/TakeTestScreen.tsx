@@ -157,7 +157,10 @@ export default function TakeTestScreen() {
       {!submitted && (
         <button
           type="button"
-          onClick={() => setSubmitted(true)}
+          onClick={() => {
+            setSubmitted(true);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
           className="bg-brand rounded-[11px] px-[22px] py-3 text-[14.5px] font-bold text-white"
         >
           {t("takeTest.submit")}
