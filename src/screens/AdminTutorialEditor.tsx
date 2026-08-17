@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getHelpTutorial, updateHelpTutorial } from "../data/clarkApi";
+import { friendlyErrorMessage } from "../data/errorMessage";
 
 export default function AdminTutorialEditor() {
   const { t } = useTranslation();
@@ -19,9 +20,7 @@ export default function AdminTutorialEditor() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setLoadError(
-            err instanceof Error ? err.message : t("admin.help.couldNotLoad"),
-          );
+          setLoadError(friendlyErrorMessage(err, t("admin.help.couldNotLoad")));
         }
       });
     return () => {
@@ -40,9 +39,7 @@ export default function AdminTutorialEditor() {
       setContent(updated.content);
       setSaved(true);
     } catch (err) {
-      setSaveError(
-        err instanceof Error ? err.message : t("admin.help.couldNotSave"),
-      );
+      setSaveError(friendlyErrorMessage(err, t("admin.help.couldNotSave")));
     } finally {
       setSaving(false);
     }

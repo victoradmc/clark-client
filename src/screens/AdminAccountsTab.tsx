@@ -1,14 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  approveAccessRequest,
   deleteAccount,
+  getAccessRequests,
   getAccounts,
   inviteAccount,
+  rejectAccessRequest,
   requestPasswordReset,
   updateAccountRole,
   type Account,
+  type AccessRequest,
   type Role,
 } from "../data/clarkApi";
+import { friendlyErrorMessage } from "../data/errorMessage";
 import { useRowActions } from "../hooks/useRowActions";
 
 export default function AdminAccountsTab() {
@@ -27,21 +32,58 @@ export default function AdminAccountsTab() {
   const { errors: rowErrors, run: runRowAction } = useRowActions();
   const [resetSentIds, setResetSentIds] = useState<Record<string, boolean>>({});
 
+  const [accessRequests, setAccessRequests] = useState<AccessRequest[] | null>(null);
+  const [requestsLoadError, setRequestsLoadError] = useState<string | null>(null);
+  const { errors: requestRowErrors, run: runRequestRowAction } = useRowActions();
+
   async function loadAccounts() {
     try {
       const data = await getAccounts();
       setAccounts(data);
       setLoadError(null);
     } catch (err) {
-      setLoadError(
-        err instanceof Error ? err.message : t("admin.accounts.couldNotLoad"),
+      setLoadError(friendlyErrorMessage(err, t("admin.accounts.couldNotLoad")));
+    }
+  }
+
+  async function loadAccessRequests() {
+    try {
+      const data = await getAccessRequests();
+      setAccessRequests(data);
+      setRequestsLoadError(null);
+    } catch (err) {
+      setRequestsLoadError(
+        friendlyErrorMessage(err, t("admin.accounts.couldNotLoadRequests")),
       );
     }
   }
 
   useEffect(() => {
     void loadAccounts();
+    void loadAccessRequests();
   }, []);
+
+  async function handleApprove(request: AccessRequest) {
+    await runRequestRowAction(
+      request.id,
+      async () => {
+        await approveAccessRequest(request);
+        await Promise.all([loadAccessRequests(), loadAccounts()]);
+      },
+      t("admin.accounts.couldNotApprove"),
+    );
+  }
+
+  async function handleReject(id: string) {
+    await runRequestRowAction(
+      id,
+      async () => {
+        await rejectAccessRequest(id);
+        await loadAccessRequests();
+      },
+      t("admin.accounts.couldNotReject"),
+    );
+  }
 
   const visibleAccounts = useMemo(() => {
     if (!accounts) return [];
@@ -65,9 +107,7 @@ export default function AdminAccountsTab() {
       setShowInviteForm(false);
       await loadAccounts();
     } catch (err) {
-      setInviteError(
-        err instanceof Error ? err.message : t("admin.accounts.couldNotInvite"),
-      );
+      setInviteError(friendlyErrorMessage(err, t("admin.accounts.couldNotInvite")));
     } finally {
       setInviting(false);
     }
@@ -111,6 +151,57 @@ export default function AdminAccountsTab() {
 
   return (
     <div>
+      {requestsLoadError && (
+        <p className="text-brand-dark mb-4 text-sm">{requestsLoadError}</p>
+      )}
+
+      {accessRequests !== null && accessRequests.length > 0 && (
+        <div className="mb-6">
+          <div className="text-faint mb-2.5 text-[11.5px] font-bold tracking-[.04em] uppercase">
+            {t("admin.accounts.pendingRequestsTitle")}
+          </div>
+          <div className="grid gap-3">
+            {accessRequests.map((request) => (
+              <div
+                key={request.id}
+                className="border-border-soft rounded-2xl border bg-white p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-[13.5px] font-semibold">{request.name}</div>
+                    <div className="text-muted text-[12.5px]">{request.email}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleApprove(request)}
+                      className="bg-brand rounded-lg px-3 py-1.5 text-xs font-bold text-white"
+                    >
+                      {t("admin.accounts.approve")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleReject(request.id)}
+                      className="border-brand text-brand rounded-lg border-[1.5px] bg-white px-3 py-1.5 text-xs font-bold"
+                    >
+                      {t("admin.accounts.reject")}
+                    </button>
+                  </div>
+                </div>
+                {request.message && (
+                  <p className="text-muted mt-2 text-[12.5px]">{request.message}</p>
+                )}
+                {requestRowErrors[request.id] && (
+                  <p className="text-brand-dark mt-2 text-[12px]">
+                    {requestRowErrors[request.id]}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="mb-4 flex flex-wrap justify-between gap-3">
         <input
           className="border-border focus:outline-brand min-w-[220px] flex-1 rounded-[11px] border bg-white px-3.5 py-2.5 text-sm focus:outline-2 focus:outline-offset-1"
@@ -181,68 +272,78 @@ export default function AdminAccountsTab() {
 
       {loadError && <p className="text-brand-dark mb-4 text-sm">{loadError}</p>}
 
-      <div className="border-border-soft overflow-hidden rounded-2xl border bg-white">
-        <div className="text-faint grid grid-cols-[1.4fr_1.6fr_130px_130px_220px] gap-2.5 border-b border-[#EEEEEC] px-5 py-3 text-[11.5px] font-bold tracking-[.04em] uppercase">
-          <span>{t("admin.accounts.columnName")}</span>
-          <span>{t("admin.accounts.columnEmail")}</span>
-          <span>{t("admin.accounts.columnRole")}</span>
-          <span>{t("admin.accounts.columnStatus")}</span>
-          <span></span>
-        </div>
-        {visibleAccounts.map((account) => (
-          <div
-            key={account.id}
-            className="grid grid-cols-[1.4fr_1.6fr_130px_130px_220px] items-center gap-2.5 border-b border-[#F3F3F1] px-5 py-3.5 text-[13.5px] last:border-b-0"
-          >
-            <span className="font-semibold">{account.name}</span>
-            <span className="text-muted">{account.email}</span>
-            <select
-              className="border-border rounded-lg border px-2 py-1.5 text-[12.5px]"
-              value={account.role}
-              onChange={(e) => void handleRoleChange(account.id, e.target.value as Role)}
-            >
-              <option value="student">{t("admin.accounts.roleStudent")}</option>
-              <option value="admin">{t("admin.accounts.roleAdmin")}</option>
-            </select>
-            <span
-              className={`w-fit rounded-full px-2.5 py-1 text-[11.5px] font-bold ${
-                account.status === "active"
-                  ? "bg-[#DBF3E3] text-[#1D7A3E]"
-                  : "bg-chip text-chip-text"
-              }`}
-            >
-              {account.status === "active"
-                ? t("admin.accounts.statusActive")
-                : t("admin.accounts.statusInvited")}
-            </span>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => void handleResetPassword(account)}
-                className="border-border rounded-lg border bg-white px-2.5 py-1.5 text-xs font-semibold"
-              >
-                {resetSentIds[account.id]
-                  ? t("admin.accounts.resetSent")
-                  : t("admin.accounts.resetPassword")}
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleDelete(account.id)}
-                className="border-brand text-brand rounded-lg border-[1.5px] bg-white px-2.5 py-1.5 text-xs font-bold"
-              >
-                {t("admin.accounts.delete")}
-              </button>
+      {!loadError && accounts === null && (
+        <p className="text-muted text-sm">{t("common.loading")}</p>
+      )}
+
+      {accounts !== null && (
+        <>
+          <div className="border-border-soft overflow-hidden rounded-2xl border bg-white">
+            <div className="text-faint grid grid-cols-[1.4fr_1.6fr_130px_130px_220px] gap-2.5 border-b border-[#EEEEEC] px-5 py-3 text-[11.5px] font-bold tracking-[.04em] uppercase">
+              <span>{t("admin.accounts.columnName")}</span>
+              <span>{t("admin.accounts.columnEmail")}</span>
+              <span>{t("admin.accounts.columnRole")}</span>
+              <span>{t("admin.accounts.columnStatus")}</span>
+              <span></span>
             </div>
-            {rowErrors[account.id] && (
-              <p className="text-brand-dark col-span-full text-[12px]">
-                {rowErrors[account.id]}
-              </p>
-            )}
+            {visibleAccounts.map((account) => (
+              <div
+                key={account.id}
+                className="grid grid-cols-[1.4fr_1.6fr_130px_130px_220px] items-center gap-2.5 border-b border-[#F3F3F1] px-5 py-3.5 text-[13.5px] last:border-b-0"
+              >
+                <span className="font-semibold">{account.name}</span>
+                <span className="text-muted">{account.email}</span>
+                <select
+                  className="border-border rounded-lg border px-2 py-1.5 text-[12.5px]"
+                  value={account.role}
+                  onChange={(e) =>
+                    void handleRoleChange(account.id, e.target.value as Role)
+                  }
+                >
+                  <option value="student">{t("admin.accounts.roleStudent")}</option>
+                  <option value="admin">{t("admin.accounts.roleAdmin")}</option>
+                </select>
+                <span
+                  className={`w-fit rounded-full px-2.5 py-1 text-[11.5px] font-bold ${
+                    account.status === "active"
+                      ? "bg-[#DBF3E3] text-[#1D7A3E]"
+                      : "bg-chip text-chip-text"
+                  }`}
+                >
+                  {account.status === "active"
+                    ? t("admin.accounts.statusActive")
+                    : t("admin.accounts.statusInvited")}
+                </span>
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleResetPassword(account)}
+                    className="border-border rounded-lg border bg-white px-2.5 py-1.5 text-xs font-semibold"
+                  >
+                    {resetSentIds[account.id]
+                      ? t("admin.accounts.resetSent")
+                      : t("admin.accounts.resetPassword")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleDelete(account.id)}
+                    className="border-brand text-brand rounded-lg border-[1.5px] bg-white px-2.5 py-1.5 text-xs font-bold"
+                  >
+                    {t("admin.accounts.delete")}
+                  </button>
+                </div>
+                {rowErrors[account.id] && (
+                  <p className="text-brand-dark col-span-full text-[12px]">
+                    {rowErrors[account.id]}
+                  </p>
+                )}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      {visibleAccounts.length === 0 && (
-        <p className="text-faint mt-6 text-sm">{t("admin.accounts.noMatch")}</p>
+          {visibleAccounts.length === 0 && (
+            <p className="text-faint mt-6 text-sm">{t("admin.accounts.noMatch")}</p>
+          )}
+        </>
       )}
     </div>
   );

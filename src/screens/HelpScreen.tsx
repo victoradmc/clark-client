@@ -6,6 +6,7 @@ import {
   getHelpTutorial,
   type ChangelogEntry,
 } from "../data/clarkApi";
+import { friendlyErrorMessage } from "../data/errorMessage";
 import TabToggle from "../components/TabToggle";
 
 type HelpTab = "tutorial" | "changelog";
@@ -28,9 +29,7 @@ export default function HelpScreen() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setTutorialError(
-            err instanceof Error ? err.message : t("help.couldNotLoad"),
-          );
+          setTutorialError(friendlyErrorMessage(err, t("help.couldNotLoad")));
         }
       });
     return () => {
@@ -48,7 +47,7 @@ export default function HelpScreen() {
       .catch((err) => {
         if (!cancelled) {
           setEntriesError(
-            err instanceof Error ? err.message : t("help.changelog.couldNotLoad"),
+            friendlyErrorMessage(err, t("help.changelog.couldNotLoad")),
           );
         }
       });

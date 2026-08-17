@@ -6,6 +6,7 @@ import {
   getOwnerNames,
   type Lesson,
 } from "../data/clarkApi";
+import { friendlyErrorMessage } from "../data/errorMessage";
 import { useRowActions } from "../hooks/useRowActions";
 
 export default function AdminLessonsTab() {
@@ -27,9 +28,7 @@ export default function AdminLessonsTab() {
       const names = await getOwnerNames(ownerIds);
       setOwnerNames(names);
     } catch (err) {
-      setLoadError(
-        err instanceof Error ? err.message : t("admin.lessons.couldNotLoad"),
-      );
+      setLoadError(friendlyErrorMessage(err, t("admin.lessons.couldNotLoad")));
     }
   }
 
@@ -70,44 +69,54 @@ export default function AdminLessonsTab() {
 
       {loadError && <p className="text-brand-dark mb-4 text-sm">{loadError}</p>}
 
-      <div className="border-border-soft overflow-hidden rounded-2xl border bg-white">
-        <div className="text-faint grid grid-cols-[1.6fr_1fr_1fr_1fr_100px] gap-2.5 border-b border-[#EEEEEC] px-5 py-3 text-[11.5px] font-bold tracking-[.04em] uppercase">
-          <span>{t("admin.lessons.columnTitle")}</span>
-          <span>{t("admin.lessons.columnSubject")}</span>
-          <span>{t("admin.lessons.columnOwner")}</span>
-          <span>{t("admin.lessons.columnVisibility")}</span>
-          <span></span>
-        </div>
-        {visibleLessons.map((lesson) => (
-          <div
-            key={lesson.id}
-            className="grid grid-cols-[1.6fr_1fr_1fr_1fr_100px] items-center gap-2.5 border-b border-[#F3F3F1] px-5 py-3.5 text-[13.5px] last:border-b-0"
-          >
-            <span className="font-semibold">{lesson.title}</span>
-            <span className="text-muted">{lesson.subject}</span>
-            <span className="text-muted">
-              {ownerNames[lesson.owner_id] ?? "…"}
-            </span>
-            <span className="text-muted">
-              {lesson.visibility === "public" ? t("common.public") : t("common.private")}
-            </span>
-            <button
-              type="button"
-              onClick={() => void handleDelete(lesson)}
-              className="border-brand text-brand justify-self-end rounded-lg border-[1.5px] bg-white px-2.5 py-1.5 text-xs font-bold"
-            >
-              {t("admin.lessons.delete")}
-            </button>
-            {rowErrors[lesson.id] && (
-              <p className="text-brand-dark col-span-full text-[12px]">
-                {rowErrors[lesson.id]}
-              </p>
-            )}
+      {!loadError && lessons === null && (
+        <p className="text-muted text-sm">{t("common.loading")}</p>
+      )}
+
+      {lessons !== null && (
+        <>
+          <div className="border-border-soft overflow-hidden rounded-2xl border bg-white">
+            <div className="text-faint grid grid-cols-[1.6fr_1fr_1fr_1fr_100px] gap-2.5 border-b border-[#EEEEEC] px-5 py-3 text-[11.5px] font-bold tracking-[.04em] uppercase">
+              <span>{t("admin.lessons.columnTitle")}</span>
+              <span>{t("admin.lessons.columnSubject")}</span>
+              <span>{t("admin.lessons.columnOwner")}</span>
+              <span>{t("admin.lessons.columnVisibility")}</span>
+              <span></span>
+            </div>
+            {visibleLessons.map((lesson) => (
+              <div
+                key={lesson.id}
+                className="grid grid-cols-[1.6fr_1fr_1fr_1fr_100px] items-center gap-2.5 border-b border-[#F3F3F1] px-5 py-3.5 text-[13.5px] last:border-b-0"
+              >
+                <span className="font-semibold">{lesson.title}</span>
+                <span className="text-muted">{lesson.subject}</span>
+                <span className="text-muted">
+                  {ownerNames[lesson.owner_id] ?? "…"}
+                </span>
+                <span className="text-muted">
+                  {lesson.visibility === "public"
+                    ? t("common.public")
+                    : t("common.private")}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void handleDelete(lesson)}
+                  className="border-brand text-brand justify-self-end rounded-lg border-[1.5px] bg-white px-2.5 py-1.5 text-xs font-bold"
+                >
+                  {t("admin.lessons.delete")}
+                </button>
+                {rowErrors[lesson.id] && (
+                  <p className="text-brand-dark col-span-full text-[12px]">
+                    {rowErrors[lesson.id]}
+                  </p>
+                )}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      {visibleLessons.length === 0 && (
-        <p className="text-faint mt-6 text-sm">{t("admin.lessons.noneLeft")}</p>
+          {visibleLessons.length === 0 && (
+            <p className="text-faint mt-6 text-sm">{t("admin.lessons.noneLeft")}</p>
+          )}
+        </>
       )}
     </div>
   );

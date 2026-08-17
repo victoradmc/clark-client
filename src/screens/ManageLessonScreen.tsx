@@ -9,6 +9,7 @@ import {
   type Lesson,
   type LessonVisibility,
 } from "../data/clarkApi";
+import { friendlyErrorMessage } from "../data/errorMessage";
 import Badge from "../components/Badge";
 
 export default function ManageLessonScreen() {
@@ -68,9 +69,7 @@ export default function ManageLessonScreen() {
       await updateLesson(id, { title, visibility });
       navigate(`/lessons/${id}`);
     } catch (err) {
-      setSaveError(
-        err instanceof Error ? err.message : t("manageLesson.couldNotSave"),
-      );
+      setSaveError(friendlyErrorMessage(err, t("manageLesson.couldNotSave")));
     } finally {
       setSaving(false);
     }
@@ -91,7 +90,7 @@ export default function ManageLessonScreen() {
       setDeleting(false);
       setDeleteConfirming(false);
       setDeleteError(
-        err instanceof Error ? err.message : t("manageLesson.couldNotDelete"),
+        friendlyErrorMessage(err, t("manageLesson.couldNotDelete")),
       );
     }
   }

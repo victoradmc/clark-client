@@ -7,6 +7,7 @@ import {
   updateChangelogEntry,
   type ChangelogEntry,
 } from "../data/clarkApi";
+import { friendlyErrorMessage } from "../data/errorMessage";
 import { useRowActions } from "../hooks/useRowActions";
 
 function today(): string {
@@ -44,7 +45,7 @@ export default function AdminChangelogEditor() {
       setLoadError(null);
     } catch (err) {
       setLoadError(
-        err instanceof Error ? err.message : t("admin.help.couldNotLoadEntries"),
+        friendlyErrorMessage(err, t("admin.help.couldNotLoadEntries")),
       );
     }
   }
@@ -89,7 +90,7 @@ export default function AdminChangelogEditor() {
       const fallback = editId
         ? t("admin.help.couldNotUpdate")
         : t("admin.help.couldNotCreate");
-      setFormError(err instanceof Error ? err.message : fallback);
+      setFormError(friendlyErrorMessage(err, fallback));
     } finally {
       setFormSaving(false);
     }

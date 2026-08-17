@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { getLessons, publishTest, type Lesson, type Question } from "../data/clarkApi";
+import { friendlyErrorMessage } from "../data/errorMessage";
 import { parseTestJson } from "../data/testValidation";
 
 export default function UploadTestScreen() {
@@ -30,9 +31,7 @@ export default function UploadTestScreen() {
         setLessonId(lessons[0]?.id ?? "");
       } catch (err) {
         if (!cancelled) {
-          setLoadError(
-            err instanceof Error ? err.message : t("uploadTest.couldNotLoad"),
-          );
+          setLoadError(friendlyErrorMessage(err, t("uploadTest.couldNotLoad")));
         }
       }
     })();
@@ -57,9 +56,7 @@ export default function UploadTestScreen() {
       setParseError(null);
     } catch (err) {
       setParsed(null);
-      setParseError(
-        err instanceof Error ? err.message : t("uploadTest.couldNotParse"),
-      );
+      setParseError(friendlyErrorMessage(err, t("uploadTest.couldNotParse")));
     }
   }
 
@@ -71,9 +68,7 @@ export default function UploadTestScreen() {
       await publishTest(lessonId, parsed);
       navigate(`/lessons/${lessonId}`);
     } catch (err) {
-      setPublishError(
-        err instanceof Error ? err.message : t("uploadTest.couldNotPublish"),
-      );
+      setPublishError(friendlyErrorMessage(err, t("uploadTest.couldNotPublish")));
     } finally {
       setPublishing(false);
     }

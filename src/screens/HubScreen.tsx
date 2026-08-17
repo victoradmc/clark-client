@@ -8,6 +8,7 @@ import {
   type HubTab,
   type Lesson,
 } from "../data/clarkApi";
+import { friendlyErrorMessage } from "../data/errorMessage";
 import Badge from "../components/Badge";
 import TabToggle from "../components/TabToggle";
 
@@ -48,7 +49,7 @@ export default function HubScreen() {
         if (!cancelled) setOwnerNames(names);
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : t("hub.couldNotLoad"));
+          setError(friendlyErrorMessage(err, t("hub.couldNotLoad")));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -137,53 +138,61 @@ export default function HubScreen() {
 
       {error && <p className="text-brand-dark mb-4 text-sm">{error}</p>}
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(270px,1fr))] gap-[18px]">
-        {visibleLessons.map((lesson) => (
-          <div
-            key={lesson.id}
-            className="border-border-soft flex flex-col gap-2.5 rounded-2xl border bg-white p-5 shadow-[0_1px_2px_rgba(16,24,32,.03)]"
-          >
-            <div className="flex items-center justify-between">
-              <Badge tone="brand">{lesson.subject}</Badge>
-              <span className="text-faint text-[11.5px] font-semibold">
-                {lesson.visibility === "public"
-                  ? t("common.public")
-                  : t("common.private")}
-              </span>
-            </div>
-            <div className="text-[16.5px] leading-tight font-bold tracking-[-0.01em]">
-              {lesson.title}
-            </div>
-            <p className="text-muted flex-1 text-[12.5px]">
-              {t("common.source", { origin: lesson.origin })}
-            </p>
-            <div className="text-faint text-[12px]">
-              {t("common.byOwner", { name: ownerLabel(lesson) })}
-            </div>
-            <div className="mt-1.5 flex gap-2">
-              <button
-                type="button"
-                onClick={() => navigate(`/lessons/${lesson.id}`)}
-                className="bg-ink flex-1 rounded-[10px] px-3.5 py-2.5 text-[13px] font-semibold text-white"
-              >
-                {t("hub.open")}
-              </button>
-              {lesson.owner_id === currentUserId && (
-                <button
-                  type="button"
-                  onClick={() => navigate(`/lessons/${lesson.id}/manage`)}
-                  className="border-border text-label rounded-[10px] border bg-white px-3 py-2.5 text-[13px] font-semibold"
-                >
-                  {t("hub.manage")}
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
+      {loading && !error && (
+        <p className="text-muted text-sm">{t("common.loading")}</p>
+      )}
 
-      {!loading && !error && visibleLessons.length === 0 && (
-        <p className="text-faint mt-8 text-sm">{t("hub.noMatch")}</p>
+      {!loading && (
+        <>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(270px,1fr))] gap-[18px]">
+            {visibleLessons.map((lesson) => (
+              <div
+                key={lesson.id}
+                className="border-border-soft flex flex-col gap-2.5 rounded-2xl border bg-white p-5 shadow-[0_1px_2px_rgba(16,24,32,.03)]"
+              >
+                <div className="flex items-center justify-between">
+                  <Badge tone="brand">{lesson.subject}</Badge>
+                  <span className="text-faint text-[11.5px] font-semibold">
+                    {lesson.visibility === "public"
+                      ? t("common.public")
+                      : t("common.private")}
+                  </span>
+                </div>
+                <div className="text-[16.5px] leading-tight font-bold tracking-[-0.01em]">
+                  {lesson.title}
+                </div>
+                <p className="text-muted flex-1 text-[12.5px]">
+                  {t("common.source", { origin: lesson.origin })}
+                </p>
+                <div className="text-faint text-[12px]">
+                  {t("common.byOwner", { name: ownerLabel(lesson) })}
+                </div>
+                <div className="mt-1.5 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/lessons/${lesson.id}`)}
+                    className="bg-ink flex-1 rounded-[10px] px-3.5 py-2.5 text-[13px] font-semibold text-white"
+                  >
+                    {t("hub.open")}
+                  </button>
+                  {lesson.owner_id === currentUserId && (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/lessons/${lesson.id}/manage`)}
+                      className="border-border text-label rounded-[10px] border bg-white px-3 py-2.5 text-[13px] font-semibold"
+                    >
+                      {t("hub.manage")}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {!error && visibleLessons.length === 0 && (
+            <p className="text-faint mt-8 text-sm">{t("hub.noMatch")}</p>
+          )}
+        </>
       )}
     </div>
   );

@@ -2,6 +2,7 @@ import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { createLesson, type LessonVisibility } from "../data/clarkApi";
+import { friendlyErrorMessage } from "../data/errorMessage";
 import {
   parseLessonJson,
   validateLessonFields,
@@ -49,9 +50,7 @@ export default function UploadLessonScreen() {
       setParseError(null);
     } catch (err) {
       setParsed(null);
-      setParseError(
-        err instanceof Error ? err.message : t("uploadLesson.couldNotParse"),
-      );
+      setParseError(friendlyErrorMessage(err, t("uploadLesson.couldNotParse")));
     }
   }
 
@@ -79,9 +78,7 @@ export default function UploadLessonScreen() {
       setVisibility("public");
       setPhase("publish");
     } catch (err) {
-      setFormError(
-        err instanceof Error ? err.message : t("uploadLesson.couldNotCreate"),
-      );
+      setFormError(friendlyErrorMessage(err, t("uploadLesson.couldNotCreate")));
     }
   }
 
@@ -100,7 +97,7 @@ export default function UploadLessonScreen() {
       navigate(`/lessons/${lesson.id}`);
     } catch (err) {
       setPublishError(
-        err instanceof Error ? err.message : t("uploadLesson.couldNotPublish"),
+        friendlyErrorMessage(err, t("uploadLesson.couldNotPublish")),
       );
     } finally {
       setPublishing(false);

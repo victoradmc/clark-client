@@ -439,3 +439,77 @@ export async function deleteChangelogEntry(id: string): Promise<void> {
     .single();
   if (error) throw error;
 }
+
+export type AccessRequest = {
+  id: string;
+  name: string;
+  email: string;
+  message: string | null;
+  created_at: string;
+};
+
+// Clark's one unauthenticated write (ADR 0003) — deliberately no getSession()
+// guard, unlike every other clarkApi function; a signed-out visitor calls
+// this directly from LoginScreen. The check_access_request_eligibility
+// trigger rejects a duplicate-pending or existing-Account email up front
+// with a specific, human-readable message, surfaced here as the thrown
+// error.
+//
+// No `.select()` here (unlike every other insert in this file) — anon has
+// no SELECT grant on this table, deliberately: a public SELECT policy would
+// let any visitor enumerate every pending request's name/email/message.
+// `INSERT ... RETURNING` needs SELECT privilege even just to hand the row
+// back to its own inserter, so this returns void instead.
+export async function submitAccessRequest(input: {
+  name: string;
+  email: string;
+  message?: string;
+}): Promise<void> {
+  const { error } = await supabase
+    .from("access_requests")
+    .insert({ name: input.name, email: input.email, message: input.message || null });
+  if (error) throw error;
+}
+
+// Admin-only — the RPC itself rejects a non-Admin caller (same shape as
+// admin_list_accounts), this just surfaces that as a thrown error.
+export async function getAccessRequests(): Promise<AccessRequest[]> {
+  const { data, error } = await supabase.rpc("admin_list_access_requests");
+  if (error) throw error;
+  return data;
+}
+
+// Composes two existing primitives, in this order, per spec: invite first
+// (creates the Account via the ADR 0002 Edge Function, which itself rejects
+// a non-Admin caller), then remove the now-fulfilled request. A request row
+// is never deleted without a successful invite.
+export async function approveAccessRequest(
+  request: Pick<AccessRequest, "id" | "name" | "email">,
+): Promise<Account> {
+  const account = await inviteAccount({
+    name: request.name,
+    email: request.email,
+    role: "student",
+  });
+  const { error } = await supabase
+    .from("access_requests")
+    .delete()
+    .eq("id", request.id)
+    .select()
+    .single();
+  if (error) throw error;
+  return account;
+}
+
+// RLS restricts this to an Admin caller; a non-Admin matches 0 rows and
+// .single() surfaces that as a thrown error, same pattern as deleteLesson.
+// No invite call, no email sent — the same email can request again later.
+export async function rejectAccessRequest(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("access_requests")
+    .delete()
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
+}

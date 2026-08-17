@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { friendlyErrorMessage } from "../data/errorMessage";
 
 // Shared shape for per-row async actions in a list UI (Admin's Accounts and
 // Lessons tabs): clear that row's error, run the action, and on failure
@@ -18,7 +19,7 @@ export function useRowActions() {
     } catch (err) {
       setErrors((prev) => ({
         ...prev,
-        [id]: err instanceof Error ? err.message : fallbackError,
+        [id]: friendlyErrorMessage(err, fallbackError),
       }));
     }
   }

@@ -8,6 +8,7 @@ import {
   type Locale,
   type Profile,
 } from "../data/clarkApi";
+import { friendlyErrorMessage } from "../data/errorMessage";
 
 function initialsFor(name: string): string {
   return name
@@ -52,9 +53,7 @@ export default function ProfileScreen() {
         setLocale(found.locale);
       } catch (err) {
         if (!cancelled) {
-          setLoadError(
-            err instanceof Error ? err.message : t("profile.couldNotLoad"),
-          );
+          setLoadError(friendlyErrorMessage(err, t("profile.couldNotLoad")));
         }
       }
     })();
@@ -96,9 +95,7 @@ export default function ProfileScreen() {
       setConfirmPassword("");
       setSaved(true);
     } catch (err) {
-      setSaveError(
-        err instanceof Error ? err.message : t("profile.couldNotSave"),
-      );
+      setSaveError(friendlyErrorMessage(err, t("profile.couldNotSave")));
     } finally {
       setSaving(false);
     }
@@ -118,9 +115,7 @@ export default function ProfileScreen() {
     } catch (err) {
       setDeleting(false);
       setDeleteConfirming(false);
-      setDeleteError(
-        err instanceof Error ? err.message : t("profile.couldNotDelete"),
-      );
+      setDeleteError(friendlyErrorMessage(err, t("profile.couldNotDelete")));
     }
   }
 
