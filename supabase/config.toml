@@ -173,10 +173,9 @@ enable_refresh_token_rotation = true
 # Requires enable_refresh_token_rotation = true.
 refresh_token_reuse_interval = 10
 # Allow/disallow new user signups to your project.
-# Clark has no public self-registration — every Account is Admin-invited
-# or the one-time first-Admin seed script (both use the Admin API, which
-# bypasses this setting). See spec.md's Out of Scope / Auth sections.
-enable_signup = false
+# Registration (ADR 0004) relies on public self-service signup via
+# supabase.auth.signUp() — this must stay true for that flow to work.
+enable_signup = true
 # Allow/disallow anonymous sign-ins to your project.
 enable_anonymous_sign_ins = false
 # Allow/disallow testing manual linking of accounts

@@ -1,23 +1,10 @@
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { login, submitAccessRequest } from "../data/clarkApi";
+import { EmailAlreadyRegisteredError, login, register } from "../data/clarkApi";
+import { friendlyErrorMessage } from "../data/errorMessage";
+import { MIN_PASSWORD_LENGTH } from "../data/registerValidation";
 
-type Mode = "login" | "request" | "requested";
-
-// supabase-js's default (non-throwOnError) mode throws the raw parsed
-// PostgREST error body — a plain `{ message, code, ... }` object, not an
-// `Error` instance — so a bare `err instanceof Error` check (the pattern
-// used elsewhere in this codebase) silently misses it. This form needs the
-// duplicate-pending/existing-Account messages the check_access_request_
-// eligibility trigger raises, so it reads `.message` off either shape.
-function messageOf(err: unknown): string | undefined {
-  if (err instanceof Error) return err.message;
-  if (typeof err === "object" && err !== null && "message" in err) {
-    const message = (err as { message: unknown }).message;
-    if (typeof message === "string") return message;
-  }
-  return undefined;
-}
+type Mode = "login" | "register";
 
 export default function LoginScreen() {
   const { t } = useTranslation();
@@ -28,11 +15,12 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const [requestName, setRequestName] = useState("");
-  const [requestEmail, setRequestEmail] = useState("");
-  const [requestMessage, setRequestMessage] = useState("");
-  const [requestError, setRequestError] = useState<string | null>(null);
-  const [requesting, setRequesting] = useState(false);
+  const [registerName, setRegisterName] = useState("");
+  const [registerEmail, setRegisterEmail] = useState("");
+  const [registerPassword, setRegisterPassword] = useState("");
+  const [registerConfirmPassword, setRegisterConfirmPassword] = useState("");
+  const [registerError, setRegisterError] = useState<string | null>(null);
+  const [registering, setRegistering] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -47,29 +35,50 @@ export default function LoginScreen() {
     }
   }
 
-  function openRequestForm() {
-    setMode("request");
-    setRequestName("");
-    setRequestEmail("");
-    setRequestMessage("");
-    setRequestError(null);
+  function openRegisterForm() {
+    setMode("register");
+    setRegisterName("");
+    setRegisterEmail("");
+    setRegisterPassword("");
+    setRegisterConfirmPassword("");
+    setRegisterError(null);
   }
 
-  async function handleRequestSubmit(e: FormEvent) {
+  async function handleRegisterSubmit(e: FormEvent) {
     e.preventDefault();
-    setRequestError(null);
-    setRequesting(true);
+    setRegisterError(null);
+
+    if (registerPassword.length < MIN_PASSWORD_LENGTH) {
+      setRegisterError(t("login.passwordTooShort", { min: MIN_PASSWORD_LENGTH }));
+      return;
+    }
+    if (registerPassword !== registerConfirmPassword) {
+      setRegisterError(t("login.passwordMismatch"));
+      return;
+    }
+
+    setRegistering(true);
     try {
-      await submitAccessRequest({
-        name: requestName,
-        email: requestEmail,
-        message: requestMessage.trim() || undefined,
+      await register({
+        name: registerName,
+        email: registerEmail,
+        password: registerPassword,
       });
-      setMode("requested");
+      // No further action: signUp() already leaves the caller signed in,
+      // and App's onSessionChange listener swaps this screen out on its own.
     } catch (err) {
-      setRequestError(messageOf(err) ?? t("login.couldNotSubmitRequest"));
+      // Deliberately breaks from friendlyErrorMessage's usual "never branch
+      // on error identity" rule (see errorMessage.ts) — the spec calls for
+      // a specific duplicate-email message, not a generic one, so this is
+      // the one place in the app that inspects an error's type to decide
+      // what to show.
+      setRegisterError(
+        err instanceof EmailAlreadyRegisteredError
+          ? t("login.emailAlreadyRegistered")
+          : friendlyErrorMessage(err, t("login.couldNotRegister")),
+      );
     } finally {
-      setRequesting(false);
+      setRegistering(false);
     }
   }
 
@@ -137,102 +146,108 @@ export default function LoginScreen() {
             </form>
             <button
               type="button"
-              onClick={openRequestForm}
+              onClick={openRegisterForm}
               className="mt-4 w-full text-center text-[12.5px] font-semibold text-[#8A8D93] hover:underline"
             >
-              {t("login.requestAccess")}
+              {t("login.registerLink")}
             </button>
           </>
         )}
 
-        {mode === "request" && (
+        {mode === "register" && (
           <>
             <h1 className="mb-1.5 text-[26px] font-extrabold tracking-[-0.02em]">
-              {t("login.requestAccessTitle")}
+              {t("login.registerTitle")}
             </h1>
             <p className="mb-6 text-[13px] text-[#8A8D93]">
-              {t("login.requestAccessSubtitle")}
+              {t("login.registerSubtitle")}
             </p>
-            <form className="grid gap-3.5" onSubmit={handleRequestSubmit}>
+            <form className="grid gap-3.5" onSubmit={handleRegisterSubmit}>
               <div>
                 <label
-                  htmlFor="request-name"
+                  htmlFor="register-name"
                   className="mb-1.5 block text-[12.5px] font-semibold text-[#4B4E56]"
                 >
                   {t("login.nameLabel")}
                 </label>
                 <input
-                  id="request-name"
+                  id="register-name"
                   type="text"
                   required
+                  autoComplete="name"
                   className="w-full rounded-[11px] border border-[#E4E4E1] bg-[#FBFBFA] px-3.5 py-2.5 text-sm focus:outline-2 focus:outline-[#E8542A] focus:outline-offset-1"
-                  value={requestName}
-                  onChange={(e) => setRequestName(e.target.value)}
+                  value={registerName}
+                  onChange={(e) => setRegisterName(e.target.value)}
                 />
               </div>
               <div>
                 <label
-                  htmlFor="request-email"
+                  htmlFor="register-email"
                   className="mb-1.5 block text-[12.5px] font-semibold text-[#4B4E56]"
                 >
                   {t("login.email")}
                 </label>
                 <input
-                  id="request-email"
+                  id="register-email"
                   type="email"
                   required
+                  autoComplete="email"
                   className="w-full rounded-[11px] border border-[#E4E4E1] bg-[#FBFBFA] px-3.5 py-2.5 text-sm focus:outline-2 focus:outline-[#E8542A] focus:outline-offset-1"
-                  value={requestEmail}
-                  onChange={(e) => setRequestEmail(e.target.value)}
+                  value={registerEmail}
+                  onChange={(e) => setRegisterEmail(e.target.value)}
                 />
               </div>
               <div>
                 <label
-                  htmlFor="request-message"
+                  htmlFor="register-password"
                   className="mb-1.5 block text-[12.5px] font-semibold text-[#4B4E56]"
                 >
-                  {t("login.messageLabel")}
+                  {t("login.password")}
                 </label>
-                <textarea
-                  id="request-message"
-                  className="min-h-[70px] w-full rounded-[11px] border border-[#E4E4E1] bg-[#FBFBFA] px-3.5 py-2.5 text-sm leading-relaxed focus:outline-2 focus:outline-[#E8542A] focus:outline-offset-1"
-                  value={requestMessage}
-                  onChange={(e) => setRequestMessage(e.target.value)}
+                <input
+                  id="register-password"
+                  type="password"
+                  required
+                  autoComplete="new-password"
+                  className="w-full rounded-[11px] border border-[#E4E4E1] bg-[#FBFBFA] px-3.5 py-2.5 text-sm focus:outline-2 focus:outline-[#E8542A] focus:outline-offset-1"
+                  placeholder="••••••••"
+                  value={registerPassword}
+                  onChange={(e) => setRegisterPassword(e.target.value)}
                 />
               </div>
-              {requestError && (
-                <p className="text-[13px] text-[#C7431F]">{requestError}</p>
+              <div>
+                <label
+                  htmlFor="register-confirm-password"
+                  className="mb-1.5 block text-[12.5px] font-semibold text-[#4B4E56]"
+                >
+                  {t("login.confirmPasswordLabel")}
+                </label>
+                <input
+                  id="register-confirm-password"
+                  type="password"
+                  required
+                  autoComplete="new-password"
+                  className="w-full rounded-[11px] border border-[#E4E4E1] bg-[#FBFBFA] px-3.5 py-2.5 text-sm focus:outline-2 focus:outline-[#E8542A] focus:outline-offset-1"
+                  placeholder="••••••••"
+                  value={registerConfirmPassword}
+                  onChange={(e) => setRegisterConfirmPassword(e.target.value)}
+                />
+              </div>
+              {registerError && (
+                <p className="text-[13px] text-[#C7431F]">{registerError}</p>
               )}
               <button
                 type="submit"
-                disabled={requesting}
+                disabled={registering}
                 className="mt-1.5 w-full rounded-[11px] bg-[#E8542A] py-3 text-[14.5px] font-bold text-white shadow-[0_8px_20px_rgba(232,84,42,.28)] disabled:opacity-60"
               >
-                {requesting ? t("login.submittingRequest") : t("login.submitRequest")}
+                {registering ? t("login.registering") : t("login.registerButton")}
               </button>
             </form>
             <button
               type="button"
               onClick={() => setMode("login")}
               className="mt-4 w-full text-center text-[12.5px] font-semibold text-[#8A8D93] hover:underline"
-            >
-              {t("login.backToLogin")}
-            </button>
-          </>
-        )}
-
-        {mode === "requested" && (
-          <>
-            <h1 className="mb-1.5 text-[26px] font-extrabold tracking-[-0.02em]">
-              {t("login.requestAccessTitle")}
-            </h1>
-            <p className="mb-6 text-[13px] text-[#4B4E56]">
-              {t("login.requestSubmitted")}
-            </p>
-            <button
-              type="button"
-              onClick={() => setMode("login")}
-              className="w-full rounded-[11px] bg-[#E8542A] py-3 text-[14.5px] font-bold text-white shadow-[0_8px_20px_rgba(232,84,42,.28)]"
             >
               {t("login.backToLogin")}
             </button>

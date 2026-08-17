@@ -1,6 +1,7 @@
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient";
 import { validateLessonFields } from "./lessonValidation";
+import { validateRegisterFields } from "./registerValidation";
 import { validateTestFields } from "./testValidation";
 
 export type { Session };
@@ -44,6 +45,42 @@ export async function login(email: string, password: string): Promise<void> {
     password,
   });
   if (error) throw error;
+}
+
+// Thrown specifically for a duplicate-email Registration attempt, so
+// LoginScreen can show a translated, specific message instead of a generic
+// one (spec's duplicate-email decision) — every other register() failure
+// surfaces as whatever Supabase Auth itself threw.
+export class EmailAlreadyRegisteredError extends Error {
+  constructor() {
+    super("This email is already registered.");
+    this.name = "EmailAlreadyRegisteredError";
+  }
+}
+
+// Clark's other unauthenticated call (alongside login itself) — a
+// signed-out visitor calls this directly from LoginScreen. Always produces
+// a Student Account (ADR 0004): role is never sent here at all, it's
+// hard-pinned server-side by the on_auth_user_created trigger. Returns no
+// value — signUp() already leaves the caller signed in (email confirmation
+// is disabled, see supabase/config.toml), and the existing
+// onSessionChange/getSession machinery picks that session up the same way
+// it does after login().
+export async function register(input: {
+  name: string;
+  email: string;
+  password: string;
+}): Promise<void> {
+  const fields = validateRegisterFields(input);
+  const { error } = await supabase.auth.signUp({
+    email: fields.email,
+    password: fields.password,
+    options: { data: { name: fields.name } },
+  });
+  if (error) {
+    if (error.code === "user_already_exists") throw new EmailAlreadyRegisteredError();
+    throw error;
+  }
 }
 
 export async function logout(): Promise<void> {
@@ -307,7 +344,13 @@ export async function updateAccountRole(id: string, role: Role): Promise<void> {
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {
-  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  // Without an explicit redirectTo, Supabase falls back to the project's
+  // Auth "Site URL" setting — sends people to whatever that's set to
+  // (e.g. localhost) regardless of which deployment they reset from.
+  // window.location.origin is always the environment actually in use.
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin,
+  });
   if (error) throw error;
 }
 
@@ -331,12 +374,24 @@ async function invokeAdminAccountsFunction(
   return data;
 }
 
-export async function inviteAccount(input: {
+// No invite email — ADR 0005. The Admin sets the password directly; the
+// new Account is immediately usable with it. Re-validates name/email/
+// password with the same registerValidation.ts rule Registration uses
+// (spec's "one rule set" decision) before ever reaching the Edge Function.
+export async function createAccount(input: {
   name: string;
   email: string;
+  password: string;
   role: Role;
 }): Promise<Account> {
-  const data = await invokeAdminAccountsFunction({ action: "invite", ...input });
+  const fields = validateRegisterFields(input);
+  const data = await invokeAdminAccountsFunction({
+    action: "create",
+    name: fields.name,
+    email: fields.email,
+    password: fields.password,
+    role: input.role,
+  });
   return data as Account;
 }
 
@@ -440,76 +495,3 @@ export async function deleteChangelogEntry(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export type AccessRequest = {
-  id: string;
-  name: string;
-  email: string;
-  message: string | null;
-  created_at: string;
-};
-
-// Clark's one unauthenticated write (ADR 0003) — deliberately no getSession()
-// guard, unlike every other clarkApi function; a signed-out visitor calls
-// this directly from LoginScreen. The check_access_request_eligibility
-// trigger rejects a duplicate-pending or existing-Account email up front
-// with a specific, human-readable message, surfaced here as the thrown
-// error.
-//
-// No `.select()` here (unlike every other insert in this file) — anon has
-// no SELECT grant on this table, deliberately: a public SELECT policy would
-// let any visitor enumerate every pending request's name/email/message.
-// `INSERT ... RETURNING` needs SELECT privilege even just to hand the row
-// back to its own inserter, so this returns void instead.
-export async function submitAccessRequest(input: {
-  name: string;
-  email: string;
-  message?: string;
-}): Promise<void> {
-  const { error } = await supabase
-    .from("access_requests")
-    .insert({ name: input.name, email: input.email, message: input.message || null });
-  if (error) throw error;
-}
-
-// Admin-only — the RPC itself rejects a non-Admin caller (same shape as
-// admin_list_accounts), this just surfaces that as a thrown error.
-export async function getAccessRequests(): Promise<AccessRequest[]> {
-  const { data, error } = await supabase.rpc("admin_list_access_requests");
-  if (error) throw error;
-  return data;
-}
-
-// Composes two existing primitives, in this order, per spec: invite first
-// (creates the Account via the ADR 0002 Edge Function, which itself rejects
-// a non-Admin caller), then remove the now-fulfilled request. A request row
-// is never deleted without a successful invite.
-export async function approveAccessRequest(
-  request: Pick<AccessRequest, "id" | "name" | "email">,
-): Promise<Account> {
-  const account = await inviteAccount({
-    name: request.name,
-    email: request.email,
-    role: "student",
-  });
-  const { error } = await supabase
-    .from("access_requests")
-    .delete()
-    .eq("id", request.id)
-    .select()
-    .single();
-  if (error) throw error;
-  return account;
-}
-
-// RLS restricts this to an Admin caller; a non-Admin matches 0 rows and
-// .single() surfaces that as a thrown error, same pattern as deleteLesson.
-// No invite call, no email sent — the same email can request again later.
-export async function rejectAccessRequest(id: string): Promise<void> {
-  const { error } = await supabase
-    .from("access_requests")
-    .delete()
-    .eq("id", id)
-    .select()
-    .single();
-  if (error) throw error;
-}

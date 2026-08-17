@@ -1,19 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  approveAccessRequest,
+  createAccount,
   deleteAccount,
-  getAccessRequests,
   getAccounts,
-  inviteAccount,
-  rejectAccessRequest,
   requestPasswordReset,
   updateAccountRole,
   type Account,
-  type AccessRequest,
   type Role,
 } from "../data/clarkApi";
 import { friendlyErrorMessage } from "../data/errorMessage";
+import { MIN_PASSWORD_LENGTH } from "../data/registerValidation";
 import { useRowActions } from "../hooks/useRowActions";
 
 export default function AdminAccountsTab() {
@@ -22,12 +19,13 @@ export default function AdminAccountsTab() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
-  const [showInviteForm, setShowInviteForm] = useState(false);
-  const [inviteName, setInviteName] = useState("");
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<Role>("student");
-  const [inviting, setInviting] = useState(false);
-  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [createName, setCreateName] = useState("");
+  const [createEmail, setCreateEmail] = useState("");
+  const [createPassword, setCreatePassword] = useState("");
+  const [createRole, setCreateRole] = useState<Role>("student");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   // One useRowActions instance per distinct row action (not shared) so a
   // request in flight for one action doesn't disable an unrelated action on
@@ -55,10 +53,6 @@ export default function AdminAccountsTab() {
     null,
   );
 
-  const [accessRequests, setAccessRequests] = useState<AccessRequest[] | null>(null);
-  const [requestsLoadError, setRequestsLoadError] = useState<string | null>(null);
-  const { errors: requestRowErrors, run: runRequestRowAction } = useRowActions();
-
   async function loadAccounts() {
     try {
       const data = await getAccounts();
@@ -69,44 +63,9 @@ export default function AdminAccountsTab() {
     }
   }
 
-  async function loadAccessRequests() {
-    try {
-      const data = await getAccessRequests();
-      setAccessRequests(data);
-      setRequestsLoadError(null);
-    } catch (err) {
-      setRequestsLoadError(
-        friendlyErrorMessage(err, t("admin.accounts.couldNotLoadRequests")),
-      );
-    }
-  }
-
   useEffect(() => {
     void loadAccounts();
-    void loadAccessRequests();
   }, []);
-
-  async function handleApprove(request: AccessRequest) {
-    await runRequestRowAction(
-      request.id,
-      async () => {
-        await approveAccessRequest(request);
-        await Promise.all([loadAccessRequests(), loadAccounts()]);
-      },
-      t("admin.accounts.couldNotApprove"),
-    );
-  }
-
-  async function handleReject(id: string) {
-    await runRequestRowAction(
-      id,
-      async () => {
-        await rejectAccessRequest(id);
-        await loadAccessRequests();
-      },
-      t("admin.accounts.couldNotReject"),
-    );
-  }
 
   const visibleAccounts = useMemo(() => {
     if (!accounts) return [];
@@ -119,20 +78,30 @@ export default function AdminAccountsTab() {
     );
   }, [accounts, search]);
 
-  async function handleInvite() {
-    setInviting(true);
-    setInviteError(null);
+  async function handleCreate() {
+    setCreateError(null);
+    if (createPassword.length < MIN_PASSWORD_LENGTH) {
+      setCreateError(t("admin.accounts.passwordTooShort", { min: MIN_PASSWORD_LENGTH }));
+      return;
+    }
+    setCreating(true);
     try {
-      await inviteAccount({ name: inviteName, email: inviteEmail, role: inviteRole });
-      setInviteName("");
-      setInviteEmail("");
-      setInviteRole("student");
-      setShowInviteForm(false);
+      await createAccount({
+        name: createName,
+        email: createEmail,
+        password: createPassword,
+        role: createRole,
+      });
+      setCreateName("");
+      setCreateEmail("");
+      setCreatePassword("");
+      setCreateRole("student");
+      setShowCreateForm(false);
       await loadAccounts();
     } catch (err) {
-      setInviteError(friendlyErrorMessage(err, t("admin.accounts.couldNotInvite")));
+      setCreateError(friendlyErrorMessage(err, t("admin.accounts.couldNotCreate")));
     } finally {
-      setInviting(false);
+      setCreating(false);
     }
   }
 
@@ -179,57 +148,6 @@ export default function AdminAccountsTab() {
 
   return (
     <div>
-      {requestsLoadError && (
-        <p className="text-brand-dark mb-4 text-sm">{requestsLoadError}</p>
-      )}
-
-      {accessRequests !== null && accessRequests.length > 0 && (
-        <div className="mb-6">
-          <div className="text-faint mb-2.5 text-[11.5px] font-bold tracking-[.04em] uppercase">
-            {t("admin.accounts.pendingRequestsTitle")}
-          </div>
-          <div className="grid gap-3">
-            {accessRequests.map((request) => (
-              <div
-                key={request.id}
-                className="border-border-soft rounded-2xl border bg-white p-4"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-[13.5px] font-semibold">{request.name}</div>
-                    <div className="text-muted text-[12.5px]">{request.email}</div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void handleApprove(request)}
-                      className="bg-brand rounded-lg px-3 py-1.5 text-xs font-bold text-white"
-                    >
-                      {t("admin.accounts.approve")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleReject(request.id)}
-                      className="border-brand text-brand rounded-lg border-[1.5px] bg-white px-3 py-1.5 text-xs font-bold"
-                    >
-                      {t("admin.accounts.reject")}
-                    </button>
-                  </div>
-                </div>
-                {request.message && (
-                  <p className="text-muted mt-2 text-[12.5px]">{request.message}</p>
-                )}
-                {requestRowErrors[request.id] && (
-                  <p className="text-brand-dark mt-2 text-[12px]">
-                    {requestRowErrors[request.id]}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       <div className="mb-4 flex flex-wrap justify-between gap-3">
         <input
           className="border-border focus:outline-brand min-w-[220px] flex-1 rounded-[11px] border bg-white px-3.5 py-2.5 text-sm focus:outline-2 focus:outline-offset-1"
@@ -239,23 +157,23 @@ export default function AdminAccountsTab() {
         />
         <button
           type="button"
-          onClick={() => setShowInviteForm((v) => !v)}
+          onClick={() => setShowCreateForm((v) => !v)}
           className="bg-ink rounded-[11px] px-4.5 py-2.5 text-sm font-bold text-white"
         >
-          {showInviteForm ? t("common.cancel") : t("admin.accounts.inviteButton")}
+          {showCreateForm ? t("common.cancel") : t("admin.accounts.addAccountButton")}
         </button>
       </div>
 
-      {showInviteForm && (
-        <div className="border-border-soft mb-4 grid grid-cols-[1fr_1fr_140px_auto] items-end gap-3 rounded-2xl border bg-white p-5">
+      {showCreateForm && (
+        <div className="border-border-soft mb-4 grid grid-cols-[1fr_1fr_140px] gap-3 rounded-2xl border bg-white p-5">
           <div>
             <label className="text-label mb-1.5 block text-xs font-semibold">
               {t("admin.accounts.nameLabel")}
             </label>
             <input
               className="border-border w-full rounded-[10px] border px-3 py-2.5 text-[13.5px]"
-              value={inviteName}
-              onChange={(e) => setInviteName(e.target.value)}
+              value={createName}
+              onChange={(e) => setCreateName(e.target.value)}
             />
           </div>
           <div>
@@ -265,8 +183,8 @@ export default function AdminAccountsTab() {
             <input
               type="email"
               className="border-border w-full rounded-[10px] border px-3 py-2.5 text-[13.5px]"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
+              value={createEmail}
+              onChange={(e) => setCreateEmail(e.target.value)}
             />
           </div>
           <div>
@@ -275,24 +193,38 @@ export default function AdminAccountsTab() {
             </label>
             <select
               className="border-border w-full rounded-[10px] border px-3 py-2.5 text-[13.5px]"
-              value={inviteRole}
-              onChange={(e) => setInviteRole(e.target.value as Role)}
+              value={createRole}
+              onChange={(e) => setCreateRole(e.target.value as Role)}
             >
               <option value="student">{t("admin.accounts.roleStudent")}</option>
               <option value="admin">{t("admin.accounts.roleAdmin")}</option>
             </select>
           </div>
-          <button
-            type="button"
-            disabled={inviting || !inviteName.trim() || !inviteEmail.trim()}
-            onClick={() => void handleInvite()}
-            className="bg-brand rounded-[10px] px-4.5 py-2.5 text-[13.5px] font-bold text-white disabled:opacity-60"
-          >
-            {inviting ? t("admin.accounts.inviting") : t("admin.accounts.createButton")}
-          </button>
-          {inviteError && (
+          <div className="col-span-2">
+            <label className="text-label mb-1.5 block text-xs font-semibold">
+              {t("admin.accounts.passwordLabel")}
+            </label>
+            <input
+              type="password"
+              autoComplete="new-password"
+              className="border-border w-full rounded-[10px] border px-3 py-2.5 text-[13.5px]"
+              value={createPassword}
+              onChange={(e) => setCreatePassword(e.target.value)}
+            />
+          </div>
+          <div className="flex items-end">
+            <button
+              type="button"
+              disabled={creating || !createName.trim() || !createEmail.trim() || !createPassword}
+              onClick={() => void handleCreate()}
+              className="bg-brand w-full rounded-[10px] px-4.5 py-2.5 text-[13.5px] font-bold text-white disabled:opacity-60"
+            >
+              {creating ? t("admin.accounts.creating") : t("admin.accounts.createButton")}
+            </button>
+          </div>
+          {createError && (
             <p className="text-brand-dark col-span-full text-[12.5px]">
-              {inviteError}
+              {createError}
             </p>
           )}
         </div>

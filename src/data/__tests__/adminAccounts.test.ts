@@ -1,13 +1,15 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
+  createAccount,
   deleteAccount,
   getAccounts,
-  inviteAccount,
+  getSession,
   login,
   logout,
   requestPasswordReset,
   updateAccountRole,
 } from "../clarkApi";
+import { supabase } from "../supabaseClient";
 import {
   ensureFixtureAccount,
   findEmailTo,
@@ -89,24 +91,26 @@ describe("clarkApi.updateAccountRole", () => {
   });
 });
 
-describe("clarkApi.inviteAccount", () => {
-  const INVITE_EMAIL = "accounts-invitee@clark.test";
+describe("clarkApi.createAccount", () => {
+  const CREATED_EMAIL = "accounts-created@clark.test";
+  const CREATED_PASSWORD = "correct-horse-battery";
 
   afterEach(async () => {
     const { data: list } = await serviceRoleClient.auth.admin.listUsers();
-    const existing = list.users.find((u) => u.email === INVITE_EMAIL);
+    const existing = list.users.find((u) => u.email === CREATED_EMAIL);
     if (existing) await serviceRoleClient.auth.admin.deleteUser(existing.id);
   });
 
-  it("creates a profile and sends a real invite email", async () => {
+  it("creates a Student Account usable immediately with no email sent", async () => {
     await login(ADMIN_EMAIL, FIXTURE_PASSWORD);
-    const account = await inviteAccount({
-      name: "New Invitee",
-      email: INVITE_EMAIL,
+    const account = await createAccount({
+      name: "New Student",
+      email: CREATED_EMAIL,
+      password: CREATED_PASSWORD,
       role: "student",
     });
 
-    expect(account.email).toBe(INVITE_EMAIL);
+    expect(account.email).toBe(CREATED_EMAIL);
     expect(account.role).toBe("student");
     expect(account.status).toBe("invited");
 
@@ -116,19 +120,102 @@ describe("clarkApi.inviteAccount", () => {
       .eq("id", account.id)
       .single();
     expect(profileRow).toEqual({
-      name: "New Invitee",
-      email: INVITE_EMAIL,
+      name: "New Student",
+      email: CREATED_EMAIL,
       role: "student",
     });
 
-    expect(await findEmailTo(INVITE_EMAIL)).not.toBeNull();
+    expect(await findEmailTo(CREATED_EMAIL, { timeoutMs: 1000 })).toBeNull();
+
+    await logout();
+    await login(CREATED_EMAIL, CREATED_PASSWORD);
+    const session = await getSession();
+    expect(session?.user.email).toBe(CREATED_EMAIL);
+  });
+
+  it("creates an Admin Account the same way", async () => {
+    await login(ADMIN_EMAIL, FIXTURE_PASSWORD);
+    const account = await createAccount({
+      name: "New Admin",
+      email: CREATED_EMAIL,
+      password: CREATED_PASSWORD,
+      role: "admin",
+    });
+    expect(account.role).toBe("admin");
+
+    const { data: profileRow } = await serviceRoleClient
+      .from("profiles")
+      .select("role")
+      .eq("id", account.id)
+      .single();
+    expect(profileRow?.role).toBe("admin");
+  });
+
+  it("rejects a password shorter than the minimum length client-side, before any network call", async () => {
+    await login(ADMIN_EMAIL, FIXTURE_PASSWORD);
+    await expect(
+      createAccount({ name: "X", email: CREATED_EMAIL, password: "short", role: "student" }),
+    ).rejects.toThrow(/8 characters/);
+
+    const { data: list } = await serviceRoleClient.auth.admin.listUsers();
+    expect(list.users.some((u) => u.email === CREATED_EMAIL)).toBe(false);
+  });
+
+  // createAccount() validates client-side before ever reaching the Edge
+  // Function, so the test above never actually exercises the Function's own
+  // (hand-duplicated, since Deno can't import registerValidation.ts) length
+  // check. Bypasses clarkApi entirely — same call shape
+  // invokeAdminAccountsFunction uses — to verify that check independently.
+  it("rejects a password shorter than the minimum length at the Edge Function itself", async () => {
+    await login(ADMIN_EMAIL, FIXTURE_PASSWORD);
+    const { error } = await supabase.functions.invoke("admin-accounts", {
+      body: { action: "create", name: "X", email: CREATED_EMAIL, password: "short", role: "student" },
+    });
+    expect(error).not.toBeNull();
+
+    const { data: list } = await serviceRoleClient.auth.admin.listUsers();
+    expect(list.users.some((u) => u.email === CREATED_EMAIL)).toBe(false);
   });
 
   it("is rejected for a Student", async () => {
     await login(STUDENT_EMAIL, FIXTURE_PASSWORD);
     await expect(
-      inviteAccount({ name: "X", email: INVITE_EMAIL, role: "student" }),
+      createAccount({
+        name: "X",
+        email: CREATED_EMAIL,
+        password: CREATED_PASSWORD,
+        role: "student",
+      }),
     ).rejects.toThrow();
+  });
+});
+
+// The Edge Function can't import registerValidation.ts's MIN_PASSWORD_LENGTH
+// (Deno can't resolve a relative import reaching outside supabase/functions/
+// — confirmed while building ticket 02), so it hand-duplicates the number.
+// This guards against the two silently drifting apart with no compiler tie
+// between them.
+describe("MIN_PASSWORD_LENGTH stays in sync across the Deno boundary", () => {
+  it("matches between registerValidation.ts and admin-accounts/index.ts", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const { fileURLToPath } = await import("node:url");
+    const dir = fileURLToPath(new URL(".", import.meta.url));
+
+    const validationSource = await readFile(
+      `${dir}/../registerValidation.ts`,
+      "utf-8",
+    );
+    const edgeFunctionSource = await readFile(
+      `${dir}/../../../supabase/functions/admin-accounts/index.ts`,
+      "utf-8",
+    );
+
+    const validationMatch = validationSource.match(/MIN_PASSWORD_LENGTH = (\d+)/);
+    const edgeFunctionMatch = edgeFunctionSource.match(/MIN_PASSWORD_LENGTH = (\d+)/);
+
+    expect(validationMatch).not.toBeNull();
+    expect(edgeFunctionMatch).not.toBeNull();
+    expect(edgeFunctionMatch?.[1]).toBe(validationMatch?.[1]);
   });
 });
 
