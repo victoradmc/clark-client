@@ -57,6 +57,33 @@ describe("clarkApi.getChangelogEntries", () => {
       await deleteEntry(newer.id);
     }
   });
+
+  it("breaks a tie between same-dated entries by created_at, newest-first", async () => {
+    await login(ADMIN_EMAIL, FIXTURE_PASSWORD);
+    const sameDate = "2026-03-15";
+    const firstCreated = await createChangelogEntry({
+      version: "1.0.0",
+      entry_date: sameDate,
+      body: "Created first.",
+    });
+    const secondCreated = await createChangelogEntry({
+      version: "1.0.1",
+      entry_date: sameDate,
+      body: "Created second.",
+    });
+
+    try {
+      const entries = await getChangelogEntries();
+      const firstIndex = entries.findIndex((e) => e.id === firstCreated.id);
+      const secondIndex = entries.findIndex((e) => e.id === secondCreated.id);
+      expect(firstIndex).toBeGreaterThanOrEqual(0);
+      expect(secondIndex).toBeGreaterThanOrEqual(0);
+      expect(secondIndex).toBeLessThan(firstIndex);
+    } finally {
+      await deleteEntry(firstCreated.id);
+      await deleteEntry(secondCreated.id);
+    }
+  });
 });
 
 describe("clarkApi.createChangelogEntry", () => {

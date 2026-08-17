@@ -23,13 +23,16 @@ describe("clarkApi.register", () => {
 
       const { data: profileRow } = await serviceRoleClient
         .from("profiles")
-        .select("name, email, role")
+        .select("name, email, role, locale")
         .eq("id", session!.user.id)
         .single();
       expect(profileRow).toMatchObject({
         name: "New Learner",
         email,
         role: "student",
+        // Not set explicitly by register() or the on_auth_user_created
+        // trigger — this is the profiles.locale column's default.
+        locale: "pt-BR",
       });
     } finally {
       await deleteAccountByEmail(email);

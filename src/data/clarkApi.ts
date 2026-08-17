@@ -443,12 +443,15 @@ export type ChangelogEntryFields = {
 };
 
 // Readable by any signed-in Account (RLS); newest-first by the Admin-set
-// entry_date, per the spec's display-order decision.
+// entry_date, per the spec's display-order decision. created_at descending
+// is a tie-break for entries sharing the same entry_date — entry_date alone
+// has no deterministic order between ties.
 export async function getChangelogEntries(): Promise<ChangelogEntry[]> {
   const { data, error } = await supabase
     .from("changelog_entries")
     .select()
-    .order("entry_date", { ascending: false });
+    .order("entry_date", { ascending: false })
+    .order("created_at", { ascending: false });
   if (error) throw error;
   return data;
 }

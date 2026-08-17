@@ -116,13 +116,16 @@ describe("clarkApi.createAccount", () => {
 
     const { data: profileRow } = await serviceRoleClient
       .from("profiles")
-      .select("name, email, role")
+      .select("name, email, role, locale")
       .eq("id", account.id)
       .single();
     expect(profileRow).toEqual({
       name: "New Student",
       email: CREATED_EMAIL,
       role: "student",
+      // Not set explicitly by createAccount() or the Edge Function's
+      // upsert — this is the profiles.locale column's default.
+      locale: "pt-BR",
     });
 
     expect(await findEmailTo(CREATED_EMAIL, { timeoutMs: 1000 })).toBeNull();

@@ -40,14 +40,14 @@ describe("clarkApi.updateProfile", () => {
     expect(fetched).toEqual(updated);
   });
 
-  it("defaults locale to 'en' for a newly-created Account", async () => {
+  it("defaults locale to 'pt-BR' for a newly-created Account", async () => {
     await ensureFixtureAccount(
       "profile-locale-default@clark.test",
       "student",
       "Default Locale",
     );
     await login("profile-locale-default@clark.test", FIXTURE_PASSWORD);
-    expect((await getProfile()).locale).toBe("en");
+    expect((await getProfile()).locale).toBe("pt-BR");
   });
 });
 
