@@ -4,8 +4,9 @@ import { getProfile } from "../data/clarkApi";
 import TabToggle from "../components/TabToggle";
 import AdminAccountsTab from "./AdminAccountsTab";
 import AdminLessonsTab from "./AdminLessonsTab";
+import AdminHelpTab from "./AdminHelpTab";
 
-type AdminTab = "accounts" | "lessons";
+type AdminTab = "accounts" | "lessons" | "help";
 
 export default function AdminScreen() {
   const { t } = useTranslation();
@@ -49,13 +50,16 @@ export default function AdminScreen() {
           options={[
             { value: "accounts", label: t("admin.tabAccounts") },
             { value: "lessons", label: t("admin.tabLessons") },
+            { value: "help", label: t("admin.tabHelp") },
           ]}
           value={tab}
           onChange={setTab}
         />
       </div>
 
-      {tab === "accounts" ? <AdminAccountsTab /> : <AdminLessonsTab />}
+      {tab === "accounts" && <AdminAccountsTab />}
+      {tab === "lessons" && <AdminLessonsTab />}
+      {tab === "help" && <AdminHelpTab />}
     </div>
   );
 }

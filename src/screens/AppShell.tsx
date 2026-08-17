@@ -36,6 +36,9 @@ export default function AppShell({
         <NavLink to="/upload-test" className={navLinkClass}>
           {t("nav.uploadTest")}
         </NavLink>
+        <NavLink to="/help" className={navLinkClass}>
+          {t("nav.help")}
+        </NavLink>
         {isAdmin && (
           <NavLink to="/admin" className={navLinkClass}>
             {t("nav.admin")}

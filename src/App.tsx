@@ -13,6 +13,7 @@ import ManageLessonScreen from "./screens/ManageLessonScreen";
 import TakeTestScreen from "./screens/TakeTestScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import AdminScreen from "./screens/AdminScreen";
+import HelpScreen from "./screens/HelpScreen";
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -65,6 +66,7 @@ export default function App() {
         <Route path="/lessons/:id/manage" element={<ManageLessonScreen />} />
         <Route path="/lessons/:id/test" element={<TakeTestScreen />} />
         <Route path="/profile" element={<ProfileScreen />} />
+        <Route path="/help" element={<HelpScreen />} />
         <Route path="/admin" element={<AdminScreen />} />
       </Routes>
     </AppShell>

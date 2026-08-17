@@ -343,3 +343,99 @@ export async function inviteAccount(input: {
 export async function deleteAccount(id: string): Promise<void> {
   await invokeAdminAccountsFunction({ action: "delete", id });
 }
+
+export type HelpTutorial = {
+  content: string;
+};
+
+// The Tutorial is a singleton row (spec's data-model decision) — id is
+// always 1, seeded by the help_tutorial migration, so this never 0-rows.
+export async function getHelpTutorial(): Promise<HelpTutorial> {
+  const { data, error } = await supabase
+    .from("help_tutorial")
+    .select("content")
+    .eq("id", 1)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// RLS restricts this to an Admin caller; a non-Admin matches 0 rows and
+// .single() surfaces that as a thrown error, same pattern as updateLesson.
+export async function updateHelpTutorial(content: string): Promise<HelpTutorial> {
+  const { data, error } = await supabase
+    .from("help_tutorial")
+    .update({ content })
+    .eq("id", 1)
+    .select("content")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export type ChangelogEntry = {
+  id: string;
+  version: string;
+  entry_date: string;
+  body: string;
+  created_at: string;
+};
+
+export type ChangelogEntryFields = {
+  version: string;
+  entry_date: string;
+  body: string;
+};
+
+// Readable by any signed-in Account (RLS); newest-first by the Admin-set
+// entry_date, per the spec's display-order decision.
+export async function getChangelogEntries(): Promise<ChangelogEntry[]> {
+  const { data, error } = await supabase
+    .from("changelog_entries")
+    .select()
+    .order("entry_date", { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+// RLS restricts insert to an Admin caller; a non-Admin's insert is rejected
+// directly by the with-check clause, surfaced as a thrown error.
+export async function createChangelogEntry(
+  fields: ChangelogEntryFields,
+): Promise<ChangelogEntry> {
+  const { data, error } = await supabase
+    .from("changelog_entries")
+    .insert(fields)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// Same RLS-enforced Admin-only rule as createChangelogEntry: a non-Admin
+// caller matches 0 rows and .single() surfaces that as a thrown error, same
+// pattern as updateLesson.
+export async function updateChangelogEntry(
+  id: string,
+  fields: ChangelogEntryFields,
+): Promise<ChangelogEntry> {
+  const { data, error } = await supabase
+    .from("changelog_entries")
+    .update(fields)
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// Same RLS-enforced Admin-only rule, surfaced the same way as deleteLesson.
+export async function deleteChangelogEntry(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("changelog_entries")
+    .delete()
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
+}
