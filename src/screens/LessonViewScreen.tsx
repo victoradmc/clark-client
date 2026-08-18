@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import Markdown from "react-markdown";
 import { useTranslation } from "react-i18next";
 import { getLesson, getOwnerNames, type Lesson } from "../data/clarkApi";
 import Badge from "../components/Badge";
+import Markdown from "../components/Markdown";
 
 export default function LessonViewScreen() {
   const { t } = useTranslation();

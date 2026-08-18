@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import Markdown from "react-markdown";
 import { useTranslation } from "react-i18next";
 import {
   getChangelogEntries,
@@ -8,6 +7,7 @@ import {
 } from "../data/clarkApi";
 import { friendlyErrorMessage } from "../data/errorMessage";
 import TabToggle from "../components/TabToggle";
+import Markdown from "../components/Markdown";
 
 type HelpTab = "tutorial" | "changelog";
 
