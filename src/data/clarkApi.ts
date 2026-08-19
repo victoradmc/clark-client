@@ -157,13 +157,18 @@ export async function deleteOwnAccount(): Promise<void> {
   await logout();
 }
 
-export async function createLesson(input: {
+// The unvalidated shape both createLesson and updateLesson accept — each
+// then runs it through validateLessonFields, the single required-field/
+// Origin-default rule set shared by Lesson creation and Manage's full edit.
+type LessonFieldsInput = {
   title: unknown;
   content: unknown;
   subject: unknown;
   origin?: unknown;
   visibility: LessonVisibility;
-}): Promise<Lesson> {
+};
+
+export async function createLesson(input: LessonFieldsInput): Promise<Lesson> {
   const fields = validateLessonFields(input);
   const session = await getSession();
   if (!session) throw new Error("Not signed in.");
@@ -250,17 +255,19 @@ export async function getLesson(id: string): Promise<Lesson> {
   return data;
 }
 
-// Owner-editable fields only — content, subject, and origin are immutable
-// post-publish (spec's content-editing-scope decision). RLS restricts which
-// row this can actually touch to the owner or an Admin; when it can't, 0
-// rows match and .single() surfaces that as a thrown error.
+// Re-validates with the same rule set createLesson uses (validateLessonFields)
+// — Manage lets the owner edit every Lesson field, not just Title and
+// Visibility, so the same required-field/Origin-default rules apply here too.
+// RLS restricts which row this can actually touch to the owner or an Admin;
+// when it can't, 0 rows match and .single() surfaces that as a thrown error.
 export async function updateLesson(
   id: string,
-  updates: { title: string; visibility: LessonVisibility },
+  updates: LessonFieldsInput,
 ): Promise<Lesson> {
+  const fields = validateLessonFields(updates);
   const { data, error } = await supabase
     .from("lessons")
-    .update(updates)
+    .update({ ...fields, visibility: updates.visibility })
     .eq("id", id)
     .select()
     .single();

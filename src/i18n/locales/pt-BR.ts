@@ -107,6 +107,8 @@ export const ptBR = {
   },
   lessonView: {
     backToHub: "← Voltar para a central",
+    aiDisclaimer:
+      "Este conteúdo é uma transcrição, um texto ou um exercício de apoio aos estudos, gerado para reforçar o aprendizado — não substitui uma aula, curso ou disciplina real.",
     checkKnowledge: "Teste seu conhecimento",
     noTest: "Nenhum teste foi enviado para esta aula ainda.",
     questionsAvailable_one: "{{count}} pergunta disponível",
@@ -117,6 +119,11 @@ export const ptBR = {
     eyebrow: "Gerenciamento de aula",
     title: "Editar aula",
     titleLabel: "Título",
+    subjectLabel: "Assunto",
+    originLabel: "Origem",
+    contentLabel: "Conteúdo",
+    testMayNotMatch:
+      "Esta aula tem um teste anexado — alterar o conteúdo pode fazer com que o teste não corresponda mais. O teste em si não será alterado.",
     visibilityLabel: "Visibilidade",
     publicOption: "Pública — qualquer pessoa logada pode encontrar e abrir",
     privateOption: "Privada — só você pode abrir",

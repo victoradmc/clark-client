@@ -111,6 +111,8 @@ export const en = {
   },
   lessonView: {
     backToHub: "← Back to hub",
+    aiDisclaimer:
+      "This content is a transcript, text, or exercise meant to support your studies — it does not replace an actual class, course, or lesson.",
     checkKnowledge: "Check your knowledge",
     noTest: "No test has been uploaded for this lesson yet.",
     questionsAvailable_one: "{{count}} question available",
@@ -121,6 +123,10 @@ export const en = {
     eyebrow: "Lesson management",
     title: "Edit lesson",
     titleLabel: "Title",
+    subjectLabel: "Subject",
+    originLabel: "Origin",
+    contentLabel: "Content",
+    testMayNotMatch: "This lesson has a test attached — changing the content may mean the test no longer matches. The test itself won't be changed.",
     visibilityLabel: "Visibility",
     publicOption: "Public — anyone signed in can find and open it",
     privateOption: "Private — only you can open it",

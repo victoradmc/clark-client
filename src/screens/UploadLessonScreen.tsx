@@ -18,7 +18,7 @@ export default function UploadLessonScreen() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [mode, setMode] = useState<UploadMode>("json");
+  const [mode, setMode] = useState<UploadMode>("form");
 
   const [text, setText] = useState("");
   const [parseError, setParseError] = useState<string | null>(null);
@@ -204,15 +204,77 @@ export default function UploadLessonScreen() {
         </div>
         <TabToggle
           options={[
-            { value: "json", label: t("uploadLesson.tabJson") },
             { value: "form", label: t("uploadLesson.tabForm") },
+            { value: "json", label: t("uploadLesson.tabJson") },
           ]}
           value={mode}
           onChange={setMode}
         />
       </div>
 
-      {mode === "json" ? (
+      {mode === "form" ? (
+        <>
+          <h1 className="mb-2 text-[28px] font-extrabold tracking-[-0.02em]">
+            {t("uploadLesson.formTitle")}
+          </h1>
+          <p className="text-muted mb-5 max-w-[60ch] text-[13.5px]">
+            {t("uploadLesson.formDescription")}
+          </p>
+
+          <form onSubmit={handleFormSubmit} className="grid max-w-[600px] gap-4">
+            <div>
+              <label className="text-label mb-1.5 block text-[12.5px] font-semibold">
+                {t("uploadLesson.titleLabel")}
+              </label>
+              <input
+                className="border-border focus:outline-brand w-full rounded-[11px] border bg-white px-3.5 py-2.5 text-sm focus:outline-2 focus:outline-offset-1"
+                value={formTitle}
+                onChange={(e) => setFormTitle(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-label mb-1.5 block text-[12.5px] font-semibold">
+                {t("uploadLesson.subjectLabel")}
+              </label>
+              <input
+                className="border-border focus:outline-brand w-full rounded-[11px] border bg-white px-3.5 py-2.5 text-sm focus:outline-2 focus:outline-offset-1"
+                value={formSubject}
+                onChange={(e) => setFormSubject(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-label mb-1.5 block text-[12.5px] font-semibold">
+                {t("uploadLesson.originLabel")}
+              </label>
+              <input
+                className="border-border focus:outline-brand w-full rounded-[11px] border bg-white px-3.5 py-2.5 text-sm focus:outline-2 focus:outline-offset-1"
+                value={formOrigin}
+                onChange={(e) => setFormOrigin(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-label mb-1.5 block text-[12.5px] font-semibold">
+                {t("uploadLesson.contentLabel")}
+              </label>
+              <textarea
+                className="border-border focus:outline-brand min-h-[320px] w-full rounded-2xl border bg-white p-4 text-sm leading-relaxed focus:outline-2 focus:outline-offset-1"
+                value={formContent}
+                onChange={(e) => setFormContent(e.target.value)}
+                placeholder={t("uploadLesson.contentPlaceholder")}
+              />
+            </div>
+            {formError && (
+              <p className="text-brand-dark text-[12.5px]">{formError}</p>
+            )}
+            <button
+              type="submit"
+              className="bg-brand w-fit rounded-[11px] px-5 py-2.5 text-sm font-bold text-white"
+            >
+              {t("uploadLesson.continueToPublish")}
+            </button>
+          </form>
+        </>
+      ) : (
         <>
           <h1 className="mb-2 text-[28px] font-extrabold tracking-[-0.02em]">
             {t("uploadLesson.jsonTitle")}
@@ -277,68 +339,6 @@ export default function UploadLessonScreen() {
               </button>
             </div>
           )}
-        </>
-      ) : (
-        <>
-          <h1 className="mb-2 text-[28px] font-extrabold tracking-[-0.02em]">
-            {t("uploadLesson.formTitle")}
-          </h1>
-          <p className="text-muted mb-5 max-w-[60ch] text-[13.5px]">
-            {t("uploadLesson.formDescription")}
-          </p>
-
-          <form onSubmit={handleFormSubmit} className="grid max-w-[600px] gap-4">
-            <div>
-              <label className="text-label mb-1.5 block text-[12.5px] font-semibold">
-                {t("uploadLesson.titleLabel")}
-              </label>
-              <input
-                className="border-border focus:outline-brand w-full rounded-[11px] border bg-white px-3.5 py-2.5 text-sm focus:outline-2 focus:outline-offset-1"
-                value={formTitle}
-                onChange={(e) => setFormTitle(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-label mb-1.5 block text-[12.5px] font-semibold">
-                {t("uploadLesson.subjectLabel")}
-              </label>
-              <input
-                className="border-border focus:outline-brand w-full rounded-[11px] border bg-white px-3.5 py-2.5 text-sm focus:outline-2 focus:outline-offset-1"
-                value={formSubject}
-                onChange={(e) => setFormSubject(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-label mb-1.5 block text-[12.5px] font-semibold">
-                {t("uploadLesson.originLabel")}
-              </label>
-              <input
-                className="border-border focus:outline-brand w-full rounded-[11px] border bg-white px-3.5 py-2.5 text-sm focus:outline-2 focus:outline-offset-1"
-                value={formOrigin}
-                onChange={(e) => setFormOrigin(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-label mb-1.5 block text-[12.5px] font-semibold">
-                {t("uploadLesson.contentLabel")}
-              </label>
-              <textarea
-                className="border-border focus:outline-brand min-h-[320px] w-full rounded-2xl border bg-white p-4 text-sm leading-relaxed focus:outline-2 focus:outline-offset-1"
-                value={formContent}
-                onChange={(e) => setFormContent(e.target.value)}
-                placeholder={t("uploadLesson.contentPlaceholder")}
-              />
-            </div>
-            {formError && (
-              <p className="text-brand-dark text-[12.5px]">{formError}</p>
-            )}
-            <button
-              type="submit"
-              className="bg-brand w-fit rounded-[11px] px-5 py-2.5 text-sm font-bold text-white"
-            >
-              {t("uploadLesson.continueToPublish")}
-            </button>
-          </form>
         </>
       )}
     </div>

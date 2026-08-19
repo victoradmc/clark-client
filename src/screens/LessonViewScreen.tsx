@@ -70,6 +70,9 @@ export default function LessonViewScreen() {
           {lesson.visibility === "public" ? t("common.public") : t("common.private")}
         </Badge>
       </div>
+      <p className="bg-chip text-chip-text mb-4 rounded-[11px] px-4 py-2.5 text-[12.5px] leading-relaxed">
+        {t("lessonView.aiDisclaimer")}
+      </p>
       <h1 className="mb-1.5 text-[30px] font-extrabold tracking-[-0.02em]">
         {lesson.title}
       </h1>

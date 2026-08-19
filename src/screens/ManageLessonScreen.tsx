@@ -10,7 +10,6 @@ import {
   type LessonVisibility,
 } from "../data/clarkApi";
 import { friendlyErrorMessage } from "../data/errorMessage";
-import Badge from "../components/Badge";
 
 export default function ManageLessonScreen() {
   const { t } = useTranslation();
@@ -23,6 +22,9 @@ export default function ManageLessonScreen() {
   const [notFound, setNotFound] = useState(false);
 
   const [title, setTitle] = useState("");
+  const [subject, setSubject] = useState("");
+  const [origin, setOrigin] = useState("");
+  const [content, setContent] = useState("");
   const [visibility, setVisibility] = useState<LessonVisibility>("public");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -51,6 +53,9 @@ export default function ManageLessonScreen() {
       // currentUserId from a lesson-loaded-before-session-loaded render.
       setLesson(found);
       setTitle(found.title);
+      setSubject(found.subject);
+      setOrigin(found.origin);
+      setContent(found.content);
       setVisibility(found.visibility);
       setCurrentUserId(session?.user.id ?? null);
     })();
@@ -66,7 +71,7 @@ export default function ManageLessonScreen() {
     setSaving(true);
     setSaveError(null);
     try {
-      await updateLesson(id, { title, visibility });
+      await updateLesson(id, { title, content, subject, origin, visibility });
       navigate(`/lessons/${id}`);
     } catch (err) {
       setSaveError(friendlyErrorMessage(err, t("manageLesson.couldNotSave")));
@@ -126,9 +131,40 @@ export default function ManageLessonScreen() {
             onChange={(e) => setTitle(e.target.value)}
           />
         </div>
-        <div className="flex gap-2">
-          <Badge>{lesson.subject}</Badge>
-          <Badge>{lesson.origin}</Badge>
+        <div>
+          <label className="text-label mb-1.5 block text-[12.5px] font-semibold">
+            {t("manageLesson.subjectLabel")}
+          </label>
+          <input
+            className="border-border focus:outline-brand w-full rounded-[11px] border bg-white px-3.5 py-2.5 text-sm focus:outline-2 focus:outline-offset-1"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="text-label mb-1.5 block text-[12.5px] font-semibold">
+            {t("manageLesson.originLabel")}
+          </label>
+          <input
+            className="border-border focus:outline-brand w-full rounded-[11px] border bg-white px-3.5 py-2.5 text-sm focus:outline-2 focus:outline-offset-1"
+            value={origin}
+            onChange={(e) => setOrigin(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="text-label mb-1.5 block text-[12.5px] font-semibold">
+            {t("manageLesson.contentLabel")}
+          </label>
+          <textarea
+            className="border-border focus:outline-brand min-h-[320px] w-full rounded-2xl border bg-white p-4 text-sm leading-relaxed focus:outline-2 focus:outline-offset-1"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+          />
+          {lesson.test && lesson.test.length > 0 && content !== lesson.content && (
+            <p className="text-label mt-2 text-[12.5px]">
+              {t("manageLesson.testMayNotMatch")}
+            </p>
+          )}
         </div>
         <div>
           <label className="text-label mb-2 block text-[12.5px] font-semibold">
@@ -174,7 +210,7 @@ export default function ManageLessonScreen() {
       <div className="mt-6 flex gap-2.5">
         <button
           type="button"
-          disabled={saving || !title.trim()}
+          disabled={saving || !title.trim() || !content.trim() || !subject.trim()}
           onClick={() => void handleSave()}
           className="bg-brand rounded-[11px] px-5 py-2.5 text-sm font-bold text-white disabled:opacity-60"
         >

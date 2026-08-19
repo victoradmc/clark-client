@@ -1,5 +1,11 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { deleteLesson, login, logout, updateLesson } from "../clarkApi";
+import {
+  deleteLesson,
+  login,
+  logout,
+  updateLesson,
+  type LessonVisibility,
+} from "../clarkApi";
 import { ensureFixtureAccount, FIXTURE_PASSWORD, serviceRoleClient } from "./support";
 
 const OWNER_EMAIL = "manage-lesson-owner@clark.test";
@@ -16,7 +22,16 @@ afterEach(async () => {
   await logout();
 });
 
-async function seedLesson(): Promise<string> {
+async function seedLesson(
+  overrides: Partial<{
+    title: string;
+    content: string;
+    subject: string;
+    origin: string;
+    visibility: LessonVisibility;
+    test: unknown;
+  }> = {},
+): Promise<string> {
   const { data, error } = await serviceRoleClient
     .from("lessons")
     .insert({
@@ -25,6 +40,7 @@ async function seedLesson(): Promise<string> {
       subject: "Test",
       visibility: "public",
       owner_id: ownerId,
+      ...overrides,
     })
     .select("id")
     .single();
@@ -39,6 +55,9 @@ describe("clarkApi.updateLesson", () => {
 
     const updated = await updateLesson(id, {
       title: "Updated Title",
+      content: "Content.",
+      subject: "Test",
+      origin: "Unknown",
       visibility: "private",
     });
 
@@ -54,12 +73,82 @@ describe("clarkApi.updateLesson", () => {
     expect(data?.visibility).toBe("private");
   });
 
+  it("updates subject, origin, and content together and persists the new values", async () => {
+    const id = await seedLesson();
+    await login(OWNER_EMAIL, FIXTURE_PASSWORD);
+
+    const updated = await updateLesson(id, {
+      title: "Original Title",
+      content: "Rewritten content.",
+      subject: "Chemistry",
+      origin: "Video: reactions.mp4",
+      visibility: "public",
+    });
+
+    expect(updated.subject).toBe("Chemistry");
+    expect(updated.origin).toBe("Video: reactions.mp4");
+    expect(updated.content).toBe("Rewritten content.");
+
+    const { data } = await serviceRoleClient
+      .from("lessons")
+      .select("subject, origin, content")
+      .eq("id", id)
+      .single();
+    expect(data?.subject).toBe("Chemistry");
+    expect(data?.origin).toBe("Video: reactions.mp4");
+    expect(data?.content).toBe("Rewritten content.");
+  });
+
+  it("leaves an existing Test's stored value unchanged when Content is updated", async () => {
+    const test = [
+      { question: "2+2?", options: ["3", "4"], answer: "4" },
+    ];
+    const id = await seedLesson({ test });
+    await login(OWNER_EMAIL, FIXTURE_PASSWORD);
+
+    await updateLesson(id, {
+      title: "Original Title",
+      content: "Brand new content.",
+      subject: "Test",
+      origin: "Unknown",
+      visibility: "public",
+    });
+
+    const { data } = await serviceRoleClient
+      .from("lessons")
+      .select("test")
+      .eq("id", id)
+      .single();
+    expect(data?.test).toEqual(test);
+  });
+
+  it("rejects a blank Title, Content, or Subject with the same validation Lesson creation uses", async () => {
+    const id = await seedLesson();
+    await login(OWNER_EMAIL, FIXTURE_PASSWORD);
+
+    await expect(
+      updateLesson(id, {
+        title: "   ",
+        content: "Content.",
+        subject: "Test",
+        origin: "Unknown",
+        visibility: "public",
+      }),
+    ).rejects.toThrow();
+  });
+
   it("is rejected by RLS for a non-owner, non-admin Account", async () => {
     const id = await seedLesson();
     await login(OTHER_EMAIL, FIXTURE_PASSWORD);
 
     await expect(
-      updateLesson(id, { title: "Hijacked Title", visibility: "private" }),
+      updateLesson(id, {
+        title: "Hijacked Title",
+        content: "Content.",
+        subject: "Test",
+        origin: "Unknown",
+        visibility: "private",
+      }),
     ).rejects.toThrow();
 
     const { data } = await serviceRoleClient
