@@ -165,7 +165,7 @@ export default function HubScreen() {
                 <div className="text-[16.5px] leading-tight font-bold tracking-[-0.01em]">
                   {lesson.title}
                 </div>
-                <p className="text-muted flex-1 text-[12.5px]">
+                <p className="text-muted flex-1 text-[12.5px] break-words">
                   {t("common.source", { origin: lesson.origin })}
                 </p>
                 <div className="text-faint text-[12px]">
