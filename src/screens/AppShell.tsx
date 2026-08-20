@@ -30,6 +30,9 @@ export default function AppShell({
         <NavLink to="/" end className={navLinkClass}>
           {t("nav.lessonHub")}
         </NavLink>
+        <NavLink to="/library" className={navLinkClass}>
+          {t("nav.myLibrary")}
+        </NavLink>
         <NavLink to="/upload" className={navLinkClass}>
           {t("nav.uploadLesson")}
         </NavLink>

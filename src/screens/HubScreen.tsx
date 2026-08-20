@@ -3,13 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   getLessons,
+  getMyStarredLessonIds,
   getOwnerNames,
   getSession,
   type HubTab,
   type Lesson,
+  type LessonSort,
 } from "../data/clarkApi";
 import { friendlyErrorMessage } from "../data/errorMessage";
-import Badge from "../components/Badge";
+import LessonCard from "../components/LessonCard";
+import SortSelect from "../components/SortSelect";
 import TabToggle from "../components/TabToggle";
 
 // Internal sentinel value for the subject filter's "no filter" state — never
@@ -24,8 +27,10 @@ export default function HubScreen() {
   const [tab, setTab] = useState<HubTab>("public");
   const [search, setSearch] = useState("");
   const [subject, setSubject] = useState(ALL_SUBJECTS);
+  const [sort, setSort] = useState<LessonSort>("newest");
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [ownerNames, setOwnerNames] = useState<Record<string, string>>({});
+  const [starredIds, setStarredIds] = useState<Set<string>>(new Set());
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +44,7 @@ export default function HubScreen() {
     setLoading(true);
     (async () => {
       try {
-        const data = await getLessons({ tab, search });
+        const data = await getLessons({ tab, search, sort });
         if (cancelled) return;
         setLessons(data);
         setError(null);
@@ -47,6 +52,9 @@ export default function HubScreen() {
         const ownerIds = [...new Set(data.map((l) => l.owner_id))];
         const names = await getOwnerNames(ownerIds);
         if (!cancelled) setOwnerNames(names);
+
+        const starred = await getMyStarredLessonIds(data.map((l) => l.id));
+        if (!cancelled) setStarredIds(starred);
       } catch (err) {
         if (!cancelled) {
           setError(friendlyErrorMessage(err, t("hub.couldNotLoad")));
@@ -60,7 +68,7 @@ export default function HubScreen() {
     };
     // Deliberately not depending on `t` — its reference changes on every
     // language switch, which would otherwise re-run this fetch mid-browse.
-  }, [tab, search]);
+  }, [tab, search, sort]);
 
   function handleTabChange(next: HubTab) {
     setTab(next);
@@ -138,6 +146,16 @@ export default function HubScreen() {
             </option>
           ))}
         </select>
+        <SortSelect
+          id="hub-sort"
+          label={t("hub.sortLabel")}
+          value={sort}
+          onChange={setSort}
+          options={[
+            { value: "newest", label: t("hub.sortNewest") },
+            { value: "mostStarred", label: t("hub.sortMostStarred") },
+          ]}
+        />
       </div>
 
       {error && <p className="text-brand-dark mb-4 text-sm">{error}</p>}
@@ -150,46 +168,15 @@ export default function HubScreen() {
         <>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(270px,1fr))] gap-[18px]">
             {visibleLessons.map((lesson) => (
-              <div
+              <LessonCard
                 key={lesson.id}
-                className="border-border-soft flex flex-col gap-2.5 rounded-2xl border bg-white p-5 shadow-[0_1px_2px_rgba(16,24,32,.03)]"
-              >
-                <div className="flex items-center justify-between">
-                  <Badge tone="brand">{lesson.subject}</Badge>
-                  <span className="text-faint text-[11.5px] font-semibold">
-                    {lesson.visibility === "public"
-                      ? t("common.public")
-                      : t("common.private")}
-                  </span>
-                </div>
-                <div className="text-[16.5px] leading-tight font-bold tracking-[-0.01em]">
-                  {lesson.title}
-                </div>
-                <p className="text-muted flex-1 text-[12.5px] break-words">
-                  {t("common.source", { origin: lesson.origin })}
-                </p>
-                <div className="text-faint text-[12px]">
-                  {t("common.byOwner", { name: ownerLabel(lesson) })}
-                </div>
-                <div className="mt-1.5 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/lessons/${lesson.id}`)}
-                    className="bg-ink flex-1 rounded-[10px] px-3.5 py-2.5 text-[13px] font-semibold text-white"
-                  >
-                    {t("hub.open")}
-                  </button>
-                  {lesson.owner_id === currentUserId && (
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/lessons/${lesson.id}/manage`)}
-                      className="border-border text-label rounded-[10px] border bg-white px-3 py-2.5 text-[13px] font-semibold"
-                    >
-                      {t("hub.manage")}
-                    </button>
-                  )}
-                </div>
-              </div>
+                lesson={lesson}
+                ownerLabel={ownerLabel(lesson)}
+                starred={starredIds.has(lesson.id)}
+                isOwner={lesson.owner_id === currentUserId}
+                onOpen={() => navigate(`/lessons/${lesson.id}`)}
+                onManage={() => navigate(`/lessons/${lesson.id}/manage`)}
+              />
             ))}
           </div>
 

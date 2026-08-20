@@ -6,6 +6,7 @@ import i18n, { DEFAULT_LOCALE } from "./i18n";
 import LoginScreen from "./screens/LoginScreen";
 import AppShell from "./screens/AppShell";
 import HubScreen from "./screens/HubScreen";
+import LibraryScreen from "./screens/LibraryScreen";
 import UploadLessonScreen from "./screens/UploadLessonScreen";
 import UploadTestScreen from "./screens/UploadTestScreen";
 import LessonViewScreen from "./screens/LessonViewScreen";
@@ -60,6 +61,7 @@ export default function App() {
     <AppShell session={session} isAdmin={role === "admin"}>
       <Routes>
         <Route path="/" element={<HubScreen />} />
+        <Route path="/library" element={<LibraryScreen />} />
         <Route path="/upload" element={<UploadLessonScreen />} />
         <Route path="/upload-test" element={<UploadTestScreen />} />
         <Route path="/lessons/:id" element={<LessonViewScreen />} />

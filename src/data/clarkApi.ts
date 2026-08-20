@@ -1,5 +1,6 @@
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient";
+import { validateCommentBody } from "./commentValidation";
 import { validateLessonFields } from "./lessonValidation";
 import { validateRegisterFields } from "./registerValidation";
 import { validateTestFields } from "./testValidation";
@@ -24,6 +25,7 @@ export type Lesson = {
   owner_id: string;
   test: Question[] | null;
   created_at: string;
+  star_count: number;
 };
 
 export type Role = "student" | "admin";
@@ -182,18 +184,116 @@ export async function createLesson(input: LessonFieldsInput): Promise<Lesson> {
   return data;
 }
 
+// Shared by every getLessons branch below (public/mine, and both starred
+// sub-paths) — narrows a Lessons query by title search and exact Subject,
+// the two filters every tab/sort combination applies the same way.
+function applyLessonFilters<
+  Query extends { ilike(column: string, pattern: string): Query; eq(column: string, value: string): Query },
+>(query: Query, search: string | undefined, subject: string | undefined): Query {
+  let result = query;
+  if (search) {
+    result = result.ilike("title", `%${search}%`);
+  }
+  if (subject && subject !== "All subjects") {
+    result = result.eq("subject", subject);
+  }
+  return result;
+}
+
 export type HubTab = "public" | "mine";
+
+// The "starred" tab (ticket 03/My Library) reuses this same function rather
+// than a separate "get my starred Lessons" call — the ticket's own
+// no-separate-function decision — so this type is the union getLessons
+// actually accepts, HubTab the narrower one the Hub's own tab toggle uses.
+export type LessonTab = HubTab | "starred";
+
+// "recentlyStarred" only makes sense combined with tab: "starred" (it orders
+// by the caller's own lesson_stars.created_at, which only exists on rows
+// that join survives) — My Library is the only caller that uses it.
+export type LessonSort = "newest" | "mostStarred" | "recentlyStarred";
 
 // Public tab: every Lesson with visibility = public, regardless of owner.
 // Mine tab: every Lesson owned by the caller, regardless of visibility.
-// `search` matches title, case-insensitive substring. `subject`, when given
-// and not "All subjects", narrows to an exact Subject match.
+// Starred tab: every Lesson the caller has starred (inner-joins lesson_stars
+// filtered to the caller's own rows — RLS further scopes that join to rows
+// the caller could select anyway, so this can't leak another Account's
+// stars). `search` matches title, case-insensitive substring. `subject`,
+// when given and not "All subjects", narrows to an exact Subject match.
+// `sort` defaults to "newest"; "mostStarred" orders by the denormalized
+// `star_count` (ticket 01/ADR 0007) descending. Either way the trailing
+// `created_at` order below always applies, so ties fall back to newest
+// rather than an undefined order.
 export async function getLessons(options: {
-  tab: HubTab;
+  tab: LessonTab;
   search?: string;
   subject?: string;
+  sort?: LessonSort;
 }): Promise<Lesson[]> {
-  let query = supabase.from("lessons").select();
+  const search = options.search?.trim();
+
+  // Kept as its own branch rather than folded into the tab-driven .eq()
+  // below: the starred tab's inner-joined select() has to be a separate
+  // literal string, not a value shared via a ternary/ variable — TypeScript
+  // resolves postgrest-js's compile-time select() parser against this
+  // function's `Promise<Lesson[]>` return type, and doing that across a
+  // non-literal Query type spuriously fails the parser for both branches.
+  if (options.tab === "starred") {
+    const session = await getSession();
+    if (!session) throw new Error("Not signed in.");
+
+    // "recentlyStarred" can't be expressed as a lessons-table order() at
+    // all: lesson_stars is a to-many relation from lessons' side (unique on
+    // the (lesson_id, user_id) pair, not lesson_id alone), and PostgREST
+    // refuses to order a parent query by a to-many embedded resource
+    // ("A related order on 'lesson_stars' is not possible"), even though
+    // the .eq() above narrows it to one row per Lesson at runtime. Instead:
+    // fetch the caller's own lesson_stars rows already ordered by recency,
+    // then fetch the matching Lessons and reorder them to match — .in()
+    // itself doesn't preserve argument order.
+    if (options.sort === "recentlyStarred") {
+      const { data: stars, error: starsError } = await supabase
+        .from("lesson_stars")
+        .select("lesson_id")
+        .eq("user_id", session.user.id)
+        .order("created_at", { ascending: false });
+      if (starsError) throw starsError;
+      if (stars.length === 0) return [];
+
+      const orderedIds = stars.map((s) => s.lesson_id as string);
+      const query = applyLessonFilters(
+        supabase.from("lessons").select("*").in("id", orderedIds),
+        search,
+        options.subject,
+      );
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const byId = new Map((data as Lesson[]).map((l) => [l.id, l]));
+      return orderedIds.flatMap((id) => byId.get(id) ?? []);
+    }
+
+    let query = applyLessonFilters(
+      supabase
+        .from("lessons")
+        .select("*, lesson_stars!inner(created_at)")
+        .eq("lesson_stars.user_id", session.user.id),
+      search,
+      options.subject,
+    );
+
+    if (options.sort === "mostStarred") {
+      query = query.order("star_count", { ascending: false });
+    }
+
+    const { data, error } = await query.order("created_at", {
+      ascending: false,
+    });
+    if (error) throw error;
+    return data;
+  }
+
+  let query = supabase.from("lessons").select("*");
 
   if (options.tab === "public") {
     query = query.eq("visibility", "public");
@@ -203,13 +303,10 @@ export async function getLessons(options: {
     query = query.eq("owner_id", session.user.id);
   }
 
-  const search = options.search?.trim();
-  if (search) {
-    query = query.ilike("title", `%${search}%`);
-  }
+  query = applyLessonFilters(query, search, options.subject);
 
-  if (options.subject && options.subject !== "All subjects") {
-    query = query.eq("subject", options.subject);
+  if (options.sort === "mostStarred") {
+    query = query.order("star_count", { ascending: false });
   }
 
   const { data, error } = await query.order("created_at", {
@@ -321,6 +418,217 @@ export async function getOwnerNames(
   return Object.fromEntries(
     (data as { id: string; name: string }[]).map((row) => [row.id, row.name]),
   );
+}
+
+// Which of the given Lessons the signed-in caller has starred — batch
+// lookup alongside a Lesson list, same shape as getOwnerNames. RLS already
+// scopes lesson_stars selects to the caller's own rows, so this is a plain
+// filtered query, not an RPC. Signed-out callers see no starred Lessons.
+export async function getMyStarredLessonIds(
+  lessonIds: string[],
+): Promise<Set<string>> {
+  if (lessonIds.length === 0) return new Set();
+  const session = await getSession();
+  if (!session) return new Set();
+  const { data, error } = await supabase
+    .from("lesson_stars")
+    .select("lesson_id")
+    .eq("user_id", session.user.id)
+    .in("lesson_id", lessonIds);
+  if (error) throw error;
+  return new Set(data.map((row) => row.lesson_id));
+}
+
+// The shape toggle_lesson_star's SQL `returns table (starred boolean,
+// star_count integer)` produces — named once so the RPC's result cast and
+// this function's return type don't each re-derive the same pair.
+export type StarState = { starred: boolean; star_count: number };
+
+// Toggles the caller's Star on a Lesson: removes it if present, adds it if
+// not, one per (Account, Lesson) (unique constraint). A single RPC rather
+// than a client-orchestrated check-then-act — see the
+// 20260820190000_lesson_stars migration's toggle_lesson_star for why this
+// is still RLS-enforced (not a security-definer bypass) and only exists for
+// atomicity. Throws if the caller can't see the Lesson (RLS rejects the
+// insert) or isn't signed in.
+export async function toggleLessonStar(lessonId: string): Promise<StarState> {
+  const { data, error } = await supabase
+    .rpc("toggle_lesson_star", { p_lesson_id: lessonId })
+    .single();
+  if (error) throw error;
+  return data as StarState;
+}
+
+export type LessonComment = {
+  id: string;
+  lesson_id: string;
+  author_id: string;
+  body: string;
+  created_at: string;
+  deleted_at: string | null;
+};
+
+export type LessonReply = {
+  id: string;
+  comment_id: string;
+  author_id: string;
+  body: string;
+  created_at: string;
+};
+
+// getLessonComments' actual return shape — a Comment with its Replies
+// nested inline. Kept distinct from LessonComment itself (rather than
+// adding `replies` to that type directly) because createComment/
+// updateComment/deleteComment return a bare lesson_comments row with no
+// `replies` key at all; a UI merging one of those into already-fetched
+// state needs to preserve the existing `replies` array, which only works
+// cleanly if the two types stay separate.
+export type CommentWithReplies = LessonComment & { replies: LessonReply[] };
+
+// Newest-first per spec, each Comment's Replies nested inline oldest-first.
+// Soft-deleted Comments are returned too (deleted_at set, body left
+// intact) rather than filtered out — the Lesson detail page renders those
+// as a "[deleted]" tombstone in place, so a Comment's position/row (and
+// its Replies) never disappears (ADR 0008). RLS scopes both queries to
+// rows on a Lesson the caller can already view
+// (lesson_comments_select_visible_lesson /
+// lesson_comment_replies_select_visible_lesson).
+export async function getLessonComments(lessonId: string): Promise<CommentWithReplies[]> {
+  const { data: comments, error } = await supabase
+    .from("lesson_comments")
+    .select()
+    .eq("lesson_id", lessonId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  if (comments.length === 0) return [];
+
+  const { data: replies, error: repliesError } = await supabase
+    .from("lesson_comment_replies")
+    .select()
+    .in(
+      "comment_id",
+      comments.map((c) => c.id),
+    )
+    .order("created_at", { ascending: true });
+  if (repliesError) throw repliesError;
+
+  const repliesByComment = new Map<string, LessonReply[]>();
+  for (const reply of replies as LessonReply[]) {
+    const forComment = repliesByComment.get(reply.comment_id) ?? [];
+    forComment.push(reply);
+    repliesByComment.set(reply.comment_id, forComment);
+  }
+
+  return (comments as LessonComment[]).map((comment) => ({
+    ...comment,
+    replies: repliesByComment.get(comment.id) ?? [],
+  }));
+}
+
+// RLS additionally requires the caller be able to view the Lesson itself
+// (lesson_comments_insert_own_visible_lesson) — a Student can't comment on
+// a private Lesson they don't own, even by guessing its id.
+export async function createComment(
+  lessonId: string,
+  body: string,
+): Promise<LessonComment> {
+  const validated = validateCommentBody(body);
+  const session = await getSession();
+  if (!session) throw new Error("Not signed in.");
+  const { data, error } = await supabase
+    .from("lesson_comments")
+    .insert({ lesson_id: lessonId, author_id: session.user.id, body: validated })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// Author-only — RLS plus the lesson_comments migration's
+// enforce_comment_update_rules trigger reject an Admin editing someone
+// else's body (Admin gets delete only, never edit, per ADR 0008/spec). A
+// non-author's attempt matches 0 rows and .single() surfaces that as a
+// thrown error, same pattern as updateLesson.
+export async function updateComment(id: string, body: string): Promise<LessonComment> {
+  const validated = validateCommentBody(body);
+  const { data, error } = await supabase
+    .from("lesson_comments")
+    .update({ body: validated })
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// Soft-delete: sets deleted_at rather than removing the row, so any Replies
+// underneath (ticket 05) aren't orphaned by a hard delete or cascade — see
+// ADR 0008. Allowed for the author or an Admin (RLS); a non-author,
+// non-Admin caller matches 0 rows and .single() surfaces that as a thrown
+// error. The original body is left in place, not blanked — the "[deleted]"
+// tombstone is a render-time UI decision keyed on deleted_at, not a
+// data-erasure one. Returns the updated row (like updateComment) rather
+// than void, so the caller reflects the server's actual deleted_at instead
+// of stamping its own.
+export async function deleteComment(id: string): Promise<LessonComment> {
+  const { data, error } = await supabase
+    .from("lesson_comments")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// RLS requires the caller be able to view the parent Comment's Lesson
+// (lesson_comment_replies_insert_own_visible_lesson) — same shape as
+// createComment, one join further out. Structurally, `comment_id` can only
+// ever reference a row in lesson_comments, never in
+// lesson_comment_replies itself — see ADR 0006 — so there is no code path
+// here that could target a Reply-of-a-Reply even if a caller tried.
+export async function createReply(commentId: string, body: string): Promise<LessonReply> {
+  const validated = validateCommentBody(body);
+  const session = await getSession();
+  if (!session) throw new Error("Not signed in.");
+  const { data, error } = await supabase
+    .from("lesson_comment_replies")
+    .insert({ comment_id: commentId, author_id: session.user.id, body: validated })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// Author-only, with no Admin exception at all — unlike updateComment, RLS
+// itself (lesson_comment_replies_update_own) never grants an Admin UPDATE
+// access here, since Replies never soft-delete via update in the first
+// place. A non-author's attempt matches 0 rows and .single() surfaces that
+// as a thrown error, same pattern as updateComment.
+export async function updateReply(id: string, body: string): Promise<LessonReply> {
+  const validated = validateCommentBody(body);
+  const { data, error } = await supabase
+    .from("lesson_comment_replies")
+    .update({ body: validated })
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// A real DELETE, not a soft-delete — Replies have no children to protect,
+// so there's no tombstone to preserve (ADR 0008). Allowed for the author
+// or an Admin (RLS); a non-author, non-Admin caller matches 0 rows and
+// .single() surfaces that as a thrown error.
+export async function deleteReply(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("lesson_comment_replies")
+    .delete()
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
 }
 
 export type AccountStatus = "active" | "invited";
