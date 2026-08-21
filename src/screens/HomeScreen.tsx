@@ -98,7 +98,7 @@ export default function HomeScreen() {
 
   function renderEmptyCard(eyebrow: string, message: string) {
     return (
-      <div className="border-border-soft rounded-2xl border bg-white p-5">
+      <div className="border-border-soft h-full rounded-2xl border bg-white p-5">
         <span className="text-faint text-[11.5px] font-bold tracking-[.07em] uppercase">
           {eyebrow}
         </span>

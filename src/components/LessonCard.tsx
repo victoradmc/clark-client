@@ -26,7 +26,7 @@ export default function LessonCard({
   const { t } = useTranslation();
 
   return (
-    <div className="border-border-soft flex flex-col gap-2.5 rounded-2xl border bg-white p-5 shadow-[0_1px_2px_rgba(16,24,32,.03)]">
+    <div className="border-border-soft flex h-full flex-col gap-2.5 rounded-2xl border bg-white p-5 shadow-[0_1px_2px_rgba(16,24,32,.03)]">
       {eyebrow && (
         <span className="text-faint text-[11.5px] font-bold tracking-[.07em] uppercase">
           {eyebrow}
@@ -45,13 +45,13 @@ export default function LessonCard({
           />
         </div>
       </div>
-      <div className="text-[16.5px] leading-tight font-bold tracking-[-0.01em]">
+      <div className="line-clamp-2 text-[16.5px] leading-tight font-bold tracking-[-0.01em]">
         {lesson.title}
       </div>
-      <p className="text-muted flex-1 text-[12.5px] break-words">
+      <p className="text-muted line-clamp-2 flex-1 text-[12.5px] break-words">
         {t("common.source", { origin: lesson.origin })}
       </p>
-      <div className="text-faint text-[12px]">
+      <div className="text-faint truncate text-[12px]">
         {t("common.byOwner", { name: ownerLabel })}
       </div>
       <div className="mt-1.5 flex gap-2">
