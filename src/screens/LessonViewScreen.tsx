@@ -11,6 +11,7 @@ import Badge from "../components/Badge";
 import CommentSection from "../components/CommentSection";
 import Markdown from "../components/Markdown";
 import StarButton from "../components/StarButton";
+import TakeNotesButton from "../components/TakeNotesButton";
 
 export default function LessonViewScreen() {
   const { t } = useTranslation();
@@ -80,7 +81,7 @@ export default function LessonViewScreen() {
   return (
     <div className="max-w-[700px]">
       <Link
-        to="/"
+        to="/lesson-hub"
         className="text-muted mb-5 inline-block text-[13.5px] font-semibold no-underline"
       >
         {t("lessonView.backToHub")}
@@ -131,6 +132,7 @@ export default function LessonViewScreen() {
       </div>
 
       <CommentSection lessonId={lesson.id} />
+      <TakeNotesButton lessonId={lesson.id} />
     </div>
   );
 }

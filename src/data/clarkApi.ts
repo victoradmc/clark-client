@@ -26,6 +26,7 @@ export type Lesson = {
   test: Question[] | null;
   created_at: string;
   star_count: number;
+  notes_count: number;
 };
 
 export type Role = "student" | "admin";
@@ -342,6 +343,41 @@ export async function getAllLessons(search?: string): Promise<Lesson[]> {
   return data;
 }
 
+export type SubjectSummary = {
+  subject: string;
+  lessonCount: number;
+};
+
+// Backs Home's "Browse by subject" cards — one normalized Subject group per
+// row, scoped to Public Lessons plus the caller's own (spec's data-scoping
+// decision, story 38), alphabetically sorted already by the RPC. `subject`
+// is a representative original-casing label for display (the group's most
+// recently created Lesson's literal Subject text), not a normalized value —
+// case/whitespace collapsing only ever happens inside the RPC (see the
+// 20260821110000_subject_browsing migration's normalize_subject helper),
+// never here.
+export async function getSubjectSummaries(): Promise<SubjectSummary[]> {
+  const { data, error } = await supabase.rpc("get_subject_summaries");
+  if (error) throw error;
+  return (data as { subject: string; lesson_count: number }[]).map((row) => ({
+    subject: row.subject,
+    lessonCount: row.lesson_count,
+  }));
+}
+
+// Backs the Subject page (`/subject/:name`): same Public+own visibility
+// scope as getSubjectSummaries above (the Hub's combined view), matched
+// against `name` normalized the same way, newest-first. An unrecognized or
+// empty Subject just matches zero rows — the caller renders that as an
+// empty state rather than treating it as an error (spec story 15).
+export async function getLessonsForSubject(name: string): Promise<Lesson[]> {
+  const { data, error } = await supabase.rpc("get_lessons_for_subject", {
+    p_subject: name,
+  });
+  if (error) throw error;
+  return data as Lesson[];
+}
+
 export async function getLesson(id: string): Promise<Lesson> {
   const { data, error } = await supabase
     .from("lessons")
@@ -457,6 +493,123 @@ export async function toggleLessonStar(lessonId: string): Promise<StarState> {
     .single();
   if (error) throw error;
   return data as StarState;
+}
+
+export type LessonNote = {
+  id: string;
+  lesson_id: string;
+  user_id: string;
+  content: string;
+  updated_at: string;
+};
+
+// The caller's own Note on a Lesson, or null if they haven't taken one —
+// null is a normal result here (unlike most `.single()` calls elsewhere in
+// this file, where 0 rows means "not allowed"), so this uses
+// `.maybeSingle()` instead. Signed-out callers get null rather than a
+// thrown "not signed in" error, same as getMyStarredLessonIds.
+export async function getMyNote(lessonId: string): Promise<LessonNote | null> {
+  const session = await getSession();
+  if (!session) return null;
+  const { data, error } = await supabase
+    .from("lesson_notes")
+    .select()
+    .eq("lesson_id", lessonId)
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+// Upserts the caller's one Note for this Lesson on non-empty text, or
+// deletes the row entirely when `text` trims to empty (spec: clearing a
+// Note removes it rather than leaving an empty row behind — there is no
+// check constraint blocking an empty `content`, this is the only path that
+// enforces non-empty). `updated_at` is set explicitly rather than relying
+// on the column default, since a default only fires on insert — the
+// upsert's conflict branch needs the same bump. RLS restricts both the
+// upsert and the delete to the caller's own row
+// (lesson_notes_update_own/lesson_notes_delete_own); the insert branch
+// additionally requires the caller be able to view the Lesson itself
+// (lesson_notes_insert_own_visible_lesson).
+export async function saveNote(lessonId: string, text: string): Promise<LessonNote | null> {
+  const trimmed = text.trim();
+  const session = await getSession();
+  if (!session) throw new Error("Not signed in.");
+
+  if (!trimmed) {
+    const { error } = await supabase
+      .from("lesson_notes")
+      .delete()
+      .eq("lesson_id", lessonId)
+      .eq("user_id", session.user.id);
+    if (error) throw error;
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("lesson_notes")
+    .upsert(
+      {
+        lesson_id: lessonId,
+        user_id: session.user.id,
+        content: trimmed,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "lesson_id,user_id" },
+    )
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export type MyNote = {
+  id: string;
+  lesson_id: string;
+  content: string;
+  updated_at: string;
+  lesson_title: string;
+  lesson_subject: string;
+};
+
+// Backs the "My Notes" tab (ticket 04) — the caller's own Notes, most
+// recently updated first, joined with each Note's parent Lesson title/
+// Subject. `lessons!inner(...)` (rather than a plain embed) is the whole
+// mechanism behind "a Note whose Lesson is no longer visible silently drops
+// out": lesson_notes_select_own has no visibility check at all (a Note stays
+// selectable even once its Lesson turns Private under someone else), but the
+// embedded `lessons` side of the join is still subject to lessons' own RLS,
+// and `!inner` turns a denied/absent embed into a dropped row instead of one
+// with a null `lessons` — same technique getLessons's starred tab uses via
+// `lesson_stars!inner`, just from the other table. A deleted Lesson never
+// reaches this point at all: lesson_notes.lesson_id cascades on delete, so
+// the Note row itself is gone before any query runs.
+export async function getMyNotes(): Promise<MyNote[]> {
+  const session = await getSession();
+  if (!session) return [];
+  const { data, error } = await supabase
+    .from("lesson_notes")
+    .select("id, lesson_id, content, updated_at, lessons!inner(title, subject)")
+    .eq("user_id", session.user.id)
+    .order("updated_at", { ascending: false });
+  if (error) throw error;
+  // Without generated Database types (this project has none — see
+  // supabaseClient.ts), postgrest-js can't confirm the lessons/lesson_notes
+  // relation is to-one and statically types the embedded `lessons` as an
+  // array — but the FK means it's always exactly one object at runtime, so
+  // a direct `as` (which TS rejects here as a non-overlapping type) would be
+  // wrong to "fix" by matching the array type instead.
+  return (data as unknown as (Pick<LessonNote, "id" | "lesson_id" | "content" | "updated_at"> & {
+    lessons: { title: string; subject: string };
+  })[]).map((row) => ({
+    id: row.id,
+    lesson_id: row.lesson_id,
+    content: row.content,
+    updated_at: row.updated_at,
+    lesson_title: row.lessons.title,
+    lesson_subject: row.lessons.subject,
+  }));
 }
 
 export type LessonComment = {

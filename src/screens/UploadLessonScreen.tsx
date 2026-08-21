@@ -186,7 +186,7 @@ export default function UploadLessonScreen() {
           </button>
           <button
             type="button"
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/lesson-hub")}
             className="text-muted rounded-[11px] bg-transparent px-4 py-2.5 text-sm font-semibold"
           >
             {t("common.cancel")}

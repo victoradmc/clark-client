@@ -5,7 +5,9 @@ import { getProfile, onSessionChange } from "./data/clarkApi";
 import i18n, { DEFAULT_LOCALE } from "./i18n";
 import LoginScreen from "./screens/LoginScreen";
 import AppShell from "./screens/AppShell";
+import HomeScreen from "./screens/HomeScreen";
 import HubScreen from "./screens/HubScreen";
+import SubjectScreen from "./screens/SubjectScreen";
 import LibraryScreen from "./screens/LibraryScreen";
 import UploadLessonScreen from "./screens/UploadLessonScreen";
 import UploadTestScreen from "./screens/UploadTestScreen";
@@ -60,7 +62,9 @@ export default function App() {
   return (
     <AppShell session={session} isAdmin={role === "admin"}>
       <Routes>
-        <Route path="/" element={<HubScreen />} />
+        <Route path="/" element={<HomeScreen />} />
+        <Route path="/lesson-hub" element={<HubScreen />} />
+        <Route path="/subject/:name" element={<SubjectScreen />} />
         <Route path="/library" element={<LibraryScreen />} />
         <Route path="/upload" element={<UploadLessonScreen />} />
         <Route path="/upload-test" element={<UploadTestScreen />} />

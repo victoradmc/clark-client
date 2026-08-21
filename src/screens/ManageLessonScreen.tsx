@@ -90,7 +90,7 @@ export default function ManageLessonScreen() {
     setDeleteError(null);
     try {
       await deleteLesson(id);
-      navigate("/");
+      navigate("/lesson-hub");
     } catch (err) {
       setDeleting(false);
       setDeleteConfirming(false);

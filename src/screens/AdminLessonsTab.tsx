@@ -76,17 +76,18 @@ export default function AdminLessonsTab() {
       {lessons !== null && (
         <>
           <div className="border-border-soft overflow-hidden rounded-2xl border bg-white">
-            <div className="text-faint grid grid-cols-[1.6fr_1fr_1fr_1fr_100px] gap-2.5 border-b border-[#EEEEEC] px-5 py-3 text-[11.5px] font-bold tracking-[.04em] uppercase max-md:hidden">
+            <div className="text-faint grid grid-cols-[1.6fr_1fr_1fr_1fr_80px_100px] gap-2.5 border-b border-[#EEEEEC] px-5 py-3 text-[11.5px] font-bold tracking-[.04em] uppercase max-md:hidden">
               <span>{t("admin.lessons.columnTitle")}</span>
               <span>{t("admin.lessons.columnSubject")}</span>
               <span>{t("admin.lessons.columnOwner")}</span>
               <span>{t("admin.lessons.columnVisibility")}</span>
+              <span>{t("admin.lessons.columnNotes")}</span>
               <span></span>
             </div>
             {visibleLessons.map((lesson) => (
               <div
                 key={lesson.id}
-                className="grid grid-cols-[1.6fr_1fr_1fr_1fr_100px] items-center gap-2.5 border-b border-[#F3F3F1] px-5 py-3.5 text-[13.5px] last:border-b-0 max-md:grid-cols-1 max-md:items-start max-md:gap-1.5 max-md:py-4"
+                className="grid grid-cols-[1.6fr_1fr_1fr_1fr_80px_100px] items-center gap-2.5 border-b border-[#F3F3F1] px-5 py-3.5 text-[13.5px] last:border-b-0 max-md:grid-cols-1 max-md:items-start max-md:gap-1.5 max-md:py-4"
               >
                 <span className="font-semibold">{lesson.title}</span>
                 <span className="text-muted">{lesson.subject}</span>
@@ -98,6 +99,7 @@ export default function AdminLessonsTab() {
                     ? t("common.public")
                     : t("common.private")}
                 </span>
+                <span className="text-muted">{lesson.notes_count}</span>
                 <button
                   type="button"
                   disabled={rowPending[lesson.id]}

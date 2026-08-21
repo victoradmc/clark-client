@@ -39,8 +39,12 @@ export async function ensureFixtureAccount(
 
   let id: string;
   if (createError) {
+    // listUsers defaults to 50 users per page — the fixture pool across all
+    // test files has grown past that, so the default call can silently miss
+    // an existing account and fall through to throwing createError below.
+    // perPage is set well above the current fixture count instead of paging.
     const { data: list, error: listError } =
-      await serviceRoleClient.auth.admin.listUsers();
+      await serviceRoleClient.auth.admin.listUsers({ perPage: 1000 });
     if (listError) throw listError;
     const existing = list.users.find((u) => u.email === email);
     if (!existing) throw createError;

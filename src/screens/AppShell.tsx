@@ -28,6 +28,9 @@ export default function AppShell({
           </span>
         </div>
         <NavLink to="/" end className={navLinkClass}>
+          {t("nav.home")}
+        </NavLink>
+        <NavLink to="/lesson-hub" className={navLinkClass}>
           {t("nav.lessonHub")}
         </NavLink>
         <NavLink to="/library" className={navLinkClass}>

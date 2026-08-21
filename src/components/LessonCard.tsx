@@ -13,6 +13,7 @@ export default function LessonCard({
   isOwner,
   onOpen,
   onManage,
+  eyebrow,
 }: {
   lesson: Lesson;
   ownerLabel: string;
@@ -20,11 +21,17 @@ export default function LessonCard({
   isOwner: boolean;
   onOpen: () => void;
   onManage: () => void;
+  eyebrow?: string;
 }) {
   const { t } = useTranslation();
 
   return (
     <div className="border-border-soft flex flex-col gap-2.5 rounded-2xl border bg-white p-5 shadow-[0_1px_2px_rgba(16,24,32,.03)]">
+      {eyebrow && (
+        <span className="text-faint text-[11.5px] font-bold tracking-[.07em] uppercase">
+          {eyebrow}
+        </span>
+      )}
       <div className="flex items-center justify-between">
         <Badge tone="brand">{lesson.subject}</Badge>
         <div className="flex items-center gap-2.5">
